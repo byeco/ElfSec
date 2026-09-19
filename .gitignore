@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ElfSec — çalışma anında üretilir, repoya girmez
+backend/guard_start.cmd
+backend/guard_alerts.jsonl
+backend/.guard_seen.json
+elfsec.spec
