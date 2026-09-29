@@ -1,4 +1,4 @@
-# ElfSec — E-posta Güvenlik Analiz Tool'u (v1.2.0)
+# ElfSec — E-posta Güvenlik Analiz Tool'u (v1.2.1)
 
 IMAP'tan e-posta çeken, **zararlı HTML'i temizleyen** ve **oltalama (phishing) / prompt-injection** analizi yapan güvenlik tool'u.
 TOOL-only: tek `elfsec.exe` — CLI + arka plan guard + `kontrol` denetimi. Server/frontend/Docker yok.

@@ -1,4 +1,4 @@
-# ElfSec Sistem Durum Çizelgesi (baz: v1.2.0)
+# ElfSec Sistem Durum Çizelgesi (baz: v1.2.1)
 
 > Tek exe: `elfsec.exe` (CLI + guard + web API). Web API opt-in'dir,
 > varsayılan localhost + stdlib-only (ek bağımlılık yok).
@@ -135,6 +135,12 @@
 | 54 | Artımlı senkron (`UIDVALIDITY` + son UID takibi, sadece yeni mailler) | [ ] |
 | 55 | Toplu fetch (`bulk`) + tur başına süre metriği (`--profile`) | [ ] |
 | 56 | Kural paketi güncellemesi (`update --rules` ile imzalı rules.json) | [ ] |
+
+### v1.2.1 — CI/Linux düzeltmesi [x]
+
+| # | İş | Dosya | Durum |
+|---|---|-------|-------|
+| 64 | `ELFSEC_CONFIG_DIR` kancası + XDG saygısı, test izolasyonu her platformda | `rules.py`, `settings_store.py`, `tests/` | [x] |
 
 ### v1.2.0 — Next.js istemcisi [x]
 

@@ -103,6 +103,7 @@ def _config_izole(monkeypatch, tmp_path):
     """Gerçek kimlik sızmasın: tüm config katmanları boşa al (deterministik)."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path))
     monkeypatch.delenv("ELFSEC_CONFIG", raising=False)
     from app import settings_store
     settings_store.set_explicit(None)

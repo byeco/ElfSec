@@ -102,6 +102,7 @@ def test_triage_tablo(monkeypatch, capsys):
 
 def test_rules_tablo(monkeypatch, capsys, tmp_path):
     monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path))
     _tablo_ac(monkeypatch)
     assert cli_main(["rules", "show"]) == 0
     out = capsys.readouterr().out

@@ -57,6 +57,7 @@ def test_quarantine_imapsiz_exit_2(monkeypatch, tmp_path):
     # Tüm config katmanlarını izole et (gerçek ~/.env/APPDATA sızmasın).
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path))
     monkeypatch.delenv("ELFSEC_CONFIG", raising=False)
     from app import settings_store
     settings_store.set_explicit(None)

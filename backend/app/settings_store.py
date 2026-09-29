@@ -49,6 +49,10 @@ class ConfigError(Exception):
 
 
 def default_user_config_path() -> Path:
+    # Test/CI izolasyonu: her platformda geçerli açık geçersiz kılma.
+    override = os.environ.get("ELFSEC_CONFIG_DIR", "").strip()
+    if override:
+        return Path(override) / "elfsec.env"
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
         return base / APP_NAME / "elfsec.env"

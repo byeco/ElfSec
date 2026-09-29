@@ -9,8 +9,17 @@ from app.services.ai_analyzer import local_analyze
 
 
 def _izole_tmp(monkeypatch, tmp_path):
+    # APPDATA yalnız Windows'ta okunur; Linux'ta gerçek ~/.config'e yazılırdı.
+    # ELFSEC_CONFIG_DIR her platformda geçerli (rules.py + settings_store.py).
     monkeypatch.setenv("APPDATA", str(tmp_path))
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path))
     R._CACHE.update(mtime=0.0, rules={})
+
+
+def test_rules_path_izolasyon(monkeypatch, tmp_path):
+    """ELFSEC_CONFIG_DIR her platformda rules.json yolunu belirler (CI/Linux regresyonu)."""
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    assert R.rules_path() == tmp_path / "cfg" / "rules.json"
 
 
 def test_rules_varsayilan():
@@ -39,7 +48,7 @@ def test_rules_cli_show_set_reset(monkeypatch, tmp_path, capsys):
     assert "phishing_pattern" in capsys.readouterr().out
     assert cli_main(["rules", "set", "urgency", "33"]) == 0
     assert cli_main(["rules", "disable", "urgency"]) == 0
-    data = json.loads((tmp_path / "ElfSec" / "rules.json").read_text(encoding="utf-8"))
+    data = json.loads((tmp_path / "rules.json").read_text(encoding="utf-8"))
     assert data["urgency"] == {"weight": 33, "enabled": False}
     assert cli_main(["rules", "enable", "urgency"]) == 0
     assert cli_main(["rules", "reset"]) == 0

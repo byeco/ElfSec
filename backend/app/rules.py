@@ -48,10 +48,16 @@ _CACHE: dict = {"mtime": 0.0, "rules": {}}
 
 
 def rules_path() -> Path:
+    # Test/CI izolasyonu: her platformda geçerli açık geçersiz kılma.
+    override = os.environ.get("ELFSEC_CONFIG_DIR", "").strip()
+    if override:
+        return Path(override) / "rules.json"
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
         return base / APP_NAME / "rules.json"
-    return Path.home() / ".config" / "elfsec" / "rules.json"
+    xdg = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    base = Path(xdg) if xdg else (Path.home() / ".config")
+    return base / "elfsec" / "rules.json"
 
 
 def load_rules() -> dict:

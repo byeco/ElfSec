@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v1.2.1 — CI/Linux düzeltmesi
+
+- Hata: `rules_path()` Linux'ta `APPDATA` yamasını yok sayıp gerçek
+  `~/.config`'e yazıyordu; CI'da `test_rules_cli_show_set_reset` patladı
+  (ve koşucunun ev dizinini kirletti).
+- Düzeltme: `ELFSEC_CONFIG_DIR` geçersiz kılması (her platform) + POSIX'te
+  `XDG_CONFIG_HOME` saygısı; test izolasyonları bu kancaya taşındı.
+- Yeni regresyon testi: `test_rules_path_izolasyon`.
+
 ## v1.2.0 — Next.js istemcisi
 
 - Yeni `web/elfsec.js`: bağımlılıksız Next.js istemcisi (health/analyze/sanitize,
