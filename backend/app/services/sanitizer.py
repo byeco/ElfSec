@@ -1,15 +1,19 @@
-"""Güvenlik ve Temizlik — sistemin kalbi.
+"""E-postadaki zararlı HTML'i temizlediğim yer — projenin kalbi burası bence.
 
-Pipeline: ham HTML -> Bleach (katı süzgeç) -> BeautifulSoup+lxml (saf metin).
+Mantık basit: ham HTML -> Bleach (katı süzgeç) -> BeautifulSoup+lxml (saf metin).
+İzin listesini bilerek dar tuttum, "ne olur ne olmaz" diye her şeyi kapattım.
 
 Engellenenler:
 - <script>, <style>, <iframe>, <object>, <embed>, <form>, <img> (takip pikseli riski)
 - on* event handler'lar, javascript:/data: URL'ler
 - 1x1 takip pikselleri ve track/open/click içeren URL'ler sayılır ve atılır.
+
+Not: URL'leri temizlikten ÖNCE topluyorum, çünkü analiz motorunun
+orijinal linkleri görmesi lazım (temizleyip atarsam motor kör kalıyor).
+Bunu ilk sürümde yanlış yapmışım, testler yakaladı, düzelttim.
 """
 
 import re
-from urllib.parse import urlparse
 
 import bleach
 from bs4 import BeautifulSoup

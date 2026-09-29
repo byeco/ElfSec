@@ -1,6 +1,7 @@
-# Kullanıcı indirmesi: `v*` tag'i pushlanınca Windows'ta elfsec.exe derlenir
+# Kullanıcı indirmesi: `v*` tag'i pushlanınca Windows'ta TEK elfsec.exe derlenir
+# (CLI + guard birleşik, --tray arka plan). İkinci guard exe yoktur.
 # ve GitHub Releases'e otomatik eklenir.
-# Kullanım: git tag v0.1.0; git push origin v0.1.0
+# Kullanım: git tag v0.2.0; git push origin v0.2.0
 name: release-exe
 
 on:

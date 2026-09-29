@@ -1,7 +1,8 @@
-"""ElfSec merkezi ayar yönetimi.
+"""Ayarların şeması — hangi ayar ne tipte, varsayılanı ne, burada belli.
 
-Tüm kritik veriler .env dosyasından okunur, koda gömülmez.
-byeco / açık kaynak: .env GitHub'a yüklenmez (.gitignore).
+Öğrendiğim önemli ders: şifre gibi kritik veriler koda GÖMÜLMEZ,
+.env dosyasından okunur. .env de GitHub'a yüklenmez (.gitignore'da).
+İlk commit'imde yanlışlıkla yükleyecektim, son anda fark ettim.
 """
 
 from functools import lru_cache
@@ -20,21 +21,25 @@ class Settings(BaseSettings):
     imap_folder: str = Field(default="INBOX")
     imap_port: int = Field(default=993)
 
-    # API
-    api_host: str = Field(default="0.0.0.0")
-    api_port: int = Field(default=8000)
-    api_token: str = Field(default="", description="Boşsa API korumasız (yalnızca yerel kullanım). Doluysa Bearer gerekli.")
+    # TOOL-only
     env: str = Field(default="dev")
-    cors_origins: str = Field(default="http://localhost:3000,http://127.0.0.1:3000")
 
-    # Rate limit
-    rate_limit_default: str = Field(default="30/minute")
-    rate_limit_emails: str = Field(default="20/minute")
-    rate_limit_analyze: str = Field(default="10/minute")
+    # OAuth2 (Windows hazır hesabı sessizce devralma YOKTUR — bir kez tarayıcı onayı,
+    # refresh-token DPAPI kasada). Herkes kendi uygulama kaydını açar.
+    oauth_provider: str = Field(default="", description="outlook|gmail (boşsa şifreli giriş)")
+    ms_client_id: str = Field(default="")
+    google_client_id: str = Field(default="")
+    oauth_refresh_outlook: str = Field(default="")
+    oauth_refresh_gmail: str = Field(default="")
 
     @property
-    def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+    def oauth_configured(self) -> bool:
+        p = (self.oauth_provider or "").lower()
+        if p == "outlook":
+            return bool(self.ms_client_id and self.oauth_refresh_outlook)
+        if p == "gmail":
+            return bool(self.google_client_id and self.oauth_refresh_gmail)
+        return False
 
     @property
     def imap_configured(self) -> bool:

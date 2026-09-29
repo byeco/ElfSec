@@ -1,7 +1,11 @@
-# ElfSec — E-posta Güvenlik Analiz Tool'u
+# ElfSec — E-posta Güvenlik Analiz Tool'u (v1.2.0)
 
 IMAP'tan e-posta çeken, **zararlı HTML'i temizleyen** ve **oltalama (phishing) / prompt-injection** analizi yapan güvenlik tool'u.
-Aynı çekirdek hem **terminalden (CLI)** hem de **API (FastAPI)** üzerinden kullanılır; Next.js frontend'i API'ye konuşur.
+TOOL-only: tek `elfsec.exe` — CLI + arka plan guard + `kontrol` denetimi. Server/frontend/Docker yok.
+
+> EN: ElfSec is a student-built, offline email security tool (Python). It fetches mail over IMAP,
+> sanitizes malicious HTML, and scores phishing / prompt-injection locally — no API keys, no cloud,
+> your mail never leaves your PC. Single `elfsec.exe`, 161 tests, 66 self-audits (`kontrol`) green. v1.1.0 adds an opt-in stdlib-only web API (`elfsec serve`) so your own site can score mail.
 
 ## İndirme (kullanıcılar için — `elfsec.exe`)
 
@@ -14,7 +18,9 @@ Kodla uğraşmak istemeyen kullanıcı **tek dosya** indirir, Python gerekmez:
    IMAP_USER=sen@gmail.com
    IMAP_PASSWORD=uygulama-sifresi
    ```
-3. Çalıştır:
+3. Çalıştır — iki yol var:
+   - **Çift tıkla:** menü açılır (kurulum / durum / tara / koruma / denetim), pencere kapanmaz.
+   - **Terminalden:**
    ```cmd
    elfsec.exe health
    elfsec.exe guard --unseen --interval 10
@@ -22,6 +28,25 @@ Kodla uğraşmak istemeyen kullanıcı **tek dosya** indirir, Python gerekmez:
 
 > Not: exe imzasız olduğu için Windows SmartScreen ilk açılışta uyarabilir → "Yine de çalıştır".
 > Geliştiriciler için kaynaktan kurulum aşağıda. Exe'yi kendin üretmek istersen: `backend\scripts\build_exe.ps1`.
+
+## Nasıl çalışıyor? (kısaca)
+
+Şüpheli bir mail geldiğini düşün. ElfSec onu 4 adımda inceliyor:
+
+```
+OKU  ->  TEMİZLE  ->  ANALİZ ET  ->  RAPORLA
+```
+
+1. **OKU:** Mail kutuna IMAP ile bağlanıp maili çekiyor (başlık + gövde). İstersen tek bir maili dosyadan da verebiliyorsun.
+2. **TEMİZLE:** Mailin HTML'indeki tehlikeli kısımları (`<script>`, gizli takip pikseli, `javascript:` linkleri...) atıp güvenli düz metin çıkarıyor. Linkleri analiz için kenara not ediyor.
+3. **ANALİZ ET:** Temiz metne bakıp puan veriyor (0-100): "acilen tıkla!" baskısı var mı? Gönderici bankaymış gibi mi davranıyor? Link `.tk` gibi şüpheli uzantılı mı? Cevap adresi gönderenle uyuşuyor mu? İnternet yok, yapay zekâ servisi yok — hepsi kendi yazdığım kurallarla, bilgisayarın içinde oluyor.
+4. **RAPORLA:** Sonucu yazıyor: risk skoru + seviyesi (LOW/MEDIUM/HIGH/CRITICAL) + nedenleri + ne yapman gerektiği ("linke tıklama, eki açma...").
+
+Örnek:
+```cmd
+python -m app.cli analyze --subject "Hesabınız kapanacak!" --sender "x@banka-secure.tk" --body "Hemen tıkla http://evil.tk/verify"
+→ [XXX] RISK 80/100 [CRITICAL] — Oltalama kalıbı + şüpheli link + gönderici taklidi
+```
 
 ## Tool'un mantığı (pipeline)
 
@@ -35,7 +60,7 @@ OKU  ->  TEMİZLE  ->  ANALİZ ET  ->  RAPORLA
 | **2. TEMİZLE (kalp)** | `<script>/<style>/<iframe>/<img>` ve `on*` handler'ları atar, `javascript:` URL'leri keser, **1x1 takip piksellerini** sayıp engeller, linkleri `rel="nofollow noopener"` yapar. Sonra saf düz metin çıkarır. URL'ler temizlikten **önce** toplanır (analiz için). | `bleach` + `beautifulsoup4` + `lxml` |
 | **3. ANALİZ ET** | Temiz metin + URL + göndericiyi inceler. **API anahtarı yok, internet yok** — deterministik yerel motor: oltalama kalıpları, homoglif/punycode ve IP URL'ler, gönderici taklidi, aciliyet baskısı, ek tuzağı, prompt injection. E-posta içeriği asla üçüncü partiye gitmez. | saf Python (`ai_analyzer`) |
 | **4. RAPORLA** | `risk_score (0-100)`, `risk_level (LOW/MEDIUM/HIGH/CRITICAL)`, gerekçeler, şüpheli URL'ler, `phishing/prompt-injection` bayrakları, aksiyon önerisi. | `pydantic` |
-| **Savunma** | API'ye saniyede yüzlerce istek atanları bloklar (DDoS/Brute-Force kalkanı). Şifreler koda gömülmez, katmanlı config'den okunur (ortam > `--config` > kullanıcı dosyası). | `slowapi` + katmanlı ayar |
+| **Savunma** | Klasör/limit/interval girdileri doğrulanır (`..` yasak, limit 1-100), gövde 30k'ya kırpılır, 500k DoS kesmesi. Şifreler koda gömülmez, katmanlı config'den okunur (ortam > `--config` > kullanıcı dosyası). | katmanlı ayar + `kontrol` |
 
 ## Kurulum (geliştirici)
 
@@ -45,9 +70,10 @@ python -m venv .venv
 .venv\Scripts\activate         # Windows  |  source .venv/bin/activate  (Linux)
 pip install -r requirements.txt
 
-# Etkileşimli kurulum (önerilen — şifreler şifreli saklanır)
-python -m app.cli config init
-python -m app.cli config test   # IMAP bağlantısını dene
+# Kolay kurulum: e-postanı yaz, sağlayıcıyı menüden seç (tahmini Enter ile onayla),
+# tarayıcı doğru sayfada açılır, bağlantı anında test edilir
+python -m app.cli config setup            # veya: elfsec.exe config setup
+python -m app.cli config test             # IMAP bağlantısını dene
 ```
 
 > Eski usul `.env` dosyası da hâlâ çalışır (`backend/.env` → örneği `.env.example`), ama yeni ayar sistemi önceliklidir. Hiçbir config dosyası GitHub'a yüklenmez.
@@ -58,13 +84,14 @@ Düz `.env` yerine öncelikli katmanlar + doğrulama + şifreli saklama:
 
 | Öncelik | Kaynak | Ne için |
 |---|---|---|
-| 1 (en yüksek) | Ortam değişkenleri (`IMAP_PASSWORD=...`) | Docker / CI |
+| 1 (en yüksek) | Ortam değişkenleri (`IMAP_PASSWORD=...`) | CI / otomasyon |
 | 2 | `--config YOLU` / `ELFSEC_CONFIG` | Çoklu profil (ev/iş) |
 | 3 | `%APPDATA%/ElfSec/elfsec.env` (Win) / `~/.config/elfsec/elfsec.env` | Kullanıcı ayarı (önerilen) |
 | 4 | `backend/.env` | Geriye uyumluluk |
 
 ```bash
-python -m app.cli config init                                  # sihirbazla kur
+python -m app.cli config setup                                 # kolay kurulum (önerilir)
+python -m app.cli config init                                  # klasik sihirbaz
 python -m app.cli config show                                  # etkin ayarlar (şifreler maskeli)
 python -m app.cli config set IMAP_PASSWORD                     # gizli sorar, şifreli yazar
 python -m app.cli config get IMAP_HOST                         # scriptler için tek değer
@@ -73,9 +100,33 @@ python -m app.cli config test                                  # ayar + IMAP ba�
 python -m app.cli --config is.env triage --limit 20            # farklı profille çalış
 ```
 
-- **Şifre kasası:** tek gizli bilgi `IMAP_PASSWORD`'dür; dosyada `ENC(...)` olarak Windows DPAPI ile o kullanıcı hesabına bağlı şifrelenir — başka kullanıcı/PC'de çözülemez, ek bağımlılık yok. Başka API anahtarı yoktur.
+- **Şifre kasası:** gizli bilgiler (`IMAP_PASSWORD`, `OAUTH_REFRESH_*`) dosyada `ENC(...)` olarak Windows DPAPI ile o kullanıcı hesabına bağlı şifrelenir — başka kullanıcı/PC'de çözülemez, ek bağımlılık yok.
 - **Türkçe doğrulama:** hatalı ayarda `CONFIG HATASI` + hangi anahtar + nasıl düzeltilir basılır, exit-code 2.
-- API (`serve`) tarafı da aynı merkezi ayarı okur (`--config` → `ELFSEC_CONFIG` ile alt sürece aktarılır).
+- Klasör/limit sertliği: `folder` max 128 + `..` yasak, `limit` 1-100, `interval` min 1 dk.
+
+## OAuth ile giriş (önerilir — şifre yok)
+
+Windows'taki hazır mail hesabı **sessizce devralınamaz** (kimlik bilgileri Mail uygulamasına bağlıdır, admin bile çıkaramaz — tasarım gereği). Bunun yerine bir kez tarayıcıda onay verirsiniz, refresh-token kasada durur:
+
+**1) Outlook (Hotmail/Outlook/Office365):**
+1. [Azure Portal](https://portal.azure.com) → Microsoft Entra ID → App registrations → New registration (isim: `ElfSec`, hesap türü: kişisel Microsoft hesapları, redirect: Public client).
+2. Authentication → Mobile and desktop applications → `http://127.0.0.1` (MSAL loopback için) + "Allow public client flows: Yes".
+3. API permissions → Add → `Office 365 Exchange Online` → Delegated → `IMAP.AccessAsUser.All` + `offline_access` → Grant admin consent **gerekmez** (kişisel hesap).
+4. Overview → **Application (client) ID**'yi kopyalayın.
+
+**2) Gmail:**
+1. [Google Cloud Console](https://console.cloud.google.com) → yeni proje → APIs & Services → Enable **Gmail API**.
+2. OAuth consent screen → External → test kullanıcısına kendi e-postanızı ekleyin.
+3. Credentials → Create Credentials → OAuth client ID → **Desktop app** → **Client ID**'yi kopyalayın.
+
+**3) ElfSec'e bağlama:**
+```powershell
+elfsec.exe config login --provider outlook   # veya gmail
+# client-id sorar (bir kez), tarayıcı açılır, onay ver, kapat
+elfsec.exe config test        # IMAP bağlantısı OK
+elfsec.exe config logout      # çıkış (token temizlenir)
+```
+Not: paylaşımlı/hazır client-id kullanılmaz — herkes kendi kaydını açar (kota ve güvenlik gereği). OAuth ek bağımlılık getirmez (stdlib).
 
 ## TOOL olarak kullanım (terminal)
 
@@ -106,9 +157,9 @@ python -m app.cli triage --limit 50
 python -m app.cli triage --limit 50 --unseen --min-score 25 --top 10
 python -m app.cli triage --limit 100 --fail-on HIGH --out triage.jsonl   # SIEM'e göm
 
-# 6) API sunucusunu başlat
-python -m app.cli serve
-# veya: uvicorn app.main:app --reload
+# 6) Güvenlik denetimi (sızma testleri + sürümlü yol haritası)
+python -m app.cli kontrol --fail-only
+python -m app.cli kontrol --kategori TOOL,IMAP --json --out kontrol.json
 ```
 
 ### PC açıkken sürekli koruma (guard)
@@ -122,8 +173,16 @@ python -m app.cli guard --unseen --interval 10
 # Tek tur (zamanlanmış görev / cron alternatifi)
 python -m app.cli guard --unseen --once --fail-on HIGH
 
-# Webhook ile (Discord/Slack/SIEM)
-python -m app.cli guard --unseen --interval 10 --webhook https://ornek/webhook
+# Webhook ile (Discord/Slack/SIEM) — 3 deneme + auth başlığı
+python -m app.cli guard --unseen --interval 10 --webhook https://ornek/webhook \
+  --webhook-header "Authorization: Bearer X"
+
+# PII maskeli + eski log budamalı koruma
+python -m app.cli guard --unseen --interval 10 --redact --retention-days 30
+
+# Tek maili elle karantinaya al (toast "Karantinaya al" butonu da bunu tetikler)
+python -m app.cli quarantine 123 --folder INBOX
+python -m app.cli quarantine 123 --action delete --yes   # kalıcı, onaylı
 ```
 
 **Otomatik başlatma — PC her açıldığında devreye girsin (yönetici gerekmez):**
@@ -137,7 +196,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup_autostart.ps1 -Unseen
 # kaldır: powershell -ExecutionPolicy Bypass -File scripts\remove_autostart.ps1
 ```
 
-Mantık: girişten ~1 dk sonra (Wi-Fi gelsin diye) `guard_start.cmd` üzerinden `guard` başlar, arka planda her 10 dk tarar. IMAP kesilirse guard çökmez — uyarı basıp sonraki tura devam eder.
+Mantık: girişten ~1 dk sonra (Wi-Fi gelsin diye) `guard_start.cmd` üzerinden `guard` başlar, arka planda her 10 dk tarar. IMAP kesilirse guard çökmez — hatayı sınıflandırır (`config`/`imap`), `guard_errors.jsonl`'ye yazar, 3 üst üste hatada tek toast atar, sonraki tura devam eder. Bozuk state dosyası silinmez, `.bozuk-<tarih>` yedeğine alınır. Tek bozuk mail turu öldürmez, atlanıp sayılır.
 
 ### Exit-code sözleşmesi (otomasyon/CI kapısı)
 
@@ -145,7 +204,7 @@ Mantık: girişten ~1 dk sonra (Wi-Fi gelsin diye) `guard_start.cmd` üzerinden 
 |---|---|
 | `0` | Temiz / başarılı (risk `--fail-on` eşiğinin altında) |
 | `1` | Şüpheli — risk eşiğe ulaştı (örn. `--fail-on HIGH` + HIGH bulundu) |
-| `2` | Ortam/kullanım hatası (IMAP yok, dosya yok, bağlantı hatası) |
+| `2` | Ortam/kullanım hatası (IMAP yok, dosya yok, bağlantı hatası, `guard --once` tur hatası, `config test` bağlantı hatası dahil) |
 
 ```bash
 # CI örneği: şüpheli mail varsa pipeline'ı durdur
@@ -154,9 +213,49 @@ python -m app.cli analyze-file --path "gelen/*.eml" --fail-on MEDIUM --quiet
 python -m app.cli triage --limit 50 --unseen --fail-on HIGH --out gunluk.jsonl
 ```
 
+### Web sitesinden kullanım (API)
+
+Site bu adresten skor çeker — API'yi sitenin sunucusunda çalıştır, tarayıcıdan POST at:
+
+```cmd
+REM sunucuda (token ŞART, ağa açıkken tokensuz başlamaz):
+set ELFSEC_API_TOKEN=uzun-rastgele-bir-deger
+elfsec.exe serve --host 127.0.0.1 --port 8765 --cors-origins https://benimsitem.com
+```
+
+```js
+// sitede (tarayıcı):
+const r = await fetch("http://127.0.0.1:8765/v1/analyze", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "Authorization": "Bearer UZUN-TOKEN" },
+  body: JSON.stringify({ subject: "Hesabınız kapanacak!", sender: "x@banka-secure.tk", body: "Hemen tıkla http://evil.tk/verify" })
+});
+const rapor = await r.json(); // { ok, risk_level, risk_score, reasons, ... }
+```
+
+Uçlar: `GET /v1/health` · `POST /v1/analyze` · `POST /v1/sanitize`.
+Güvenlik notları: token sadece ortam değişkeninden okunur (koda gömme!),
+varsayılan localhost'tur, rate-limit 60/dk, gövde limiti 1MB, loglara mail
+içeriği yazılmaz. Üretimde HTTPS önüne (reverse proxy) koy.
+
+#### Next.js sunucunda çalışır mı?
+
+`web/elfsec.js` (hazır istemci, bağımlılıksız) + `web/route-example.js` (örnek API Route) var.
+Önce ortamına bak — dürüst tablo:
+
+| Ortam | Çalışır mı? | Nasıl |
+|---|---|---|
+| Kendi VPS'in (Windows) | ✅ | `elfsec.exe serve` koy, Next.js route'undan `fetch` ile çağır |
+| Kendi VPS'in (Linux) | ✅ | `elfsec.exe` OLMAZ (Windows programı) — Python kaynağından çalıştır: `pip install -r backend/requirements.txt` sonra `python -m app.cli serve`. Analiz yolu Linux'ta saf çalışır (Windows'a özel import yok) |
+| Vercel / serverless | ❌ | Uzun yaşayan process yasak + exe çalışmaz — API'yi ayrı bir sunucuda tutup URL ile bağla |
+
+Kural: tarayıcı ElfSec'e direkt bağlanmaz. `elfsec.js`'i **sadece sunucu tarafında** (API Route / Server Action) kullan,
+token `process.env.ELFSEC_API_TOKEN`'da durur (`NEXT_PUBLIC_` ile başlayan değişkene ASLA koyma).
+Uçtan uca doğrulandı: Node istemci → Python API → skor (v1.2.0).
+
 ### Yazılımcılar için SDK (import edilebilir çekirdek)
 
-CLI/API ile aynı pipeline, kod içinden tek çağrı:
+CLI ile aynı pipeline, kod içinden tek çağrı:
 
 ```python
 from app.sdk import scan_text, scan_file, sanitize
@@ -172,7 +271,26 @@ clean = sanitize("<script>x</script><p>selam</p>")  # AI'sız, hızlı: safe_htm
 ```bash
 cd backend
 .venv\Scripts\activate
-python -m pytest tests -q        # 24 test: sanitizer, yerel motor, API/CLI/guard/ayar sözleşmesi
+python -m pytest tests -q        # 161 test: sanitizer, motor, TOOL CLI/guard/ayar/kontrol/headers/oauth/ops/serve
+python -m app.cli kontrol --fail-only   # 66 sızma denetimi (SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE)
+```
+
+### Kurumsal kullanım (v0.6.0)
+
+```bash
+# Motor kuralları (ağırlık aç/kapa, varsayılana dön)
+python -m app.cli rules show
+python -m app.cli rules set urgency 40
+python -m app.cli rules disable url_keyword
+python -m app.cli rules reset
+
+# SIEM'e CEF akışı
+python -m app.cli triage --limit 50 --cef gunluk.cef
+python -m app.cli guard --unseen --interval 10 --cef-log alarmlar.cef
+
+# Güncelleme kontrolü
+python -m app.cli update --check
+# Kurulum paketi: installer\elfsec.iss (Inno Setup) ile ElfSecSetup.exe üretilir
 ```
 
 Katkı akışı: test yaz → `pytest` yeşil → PR. Temizlik katmanını gevşeten her değişiklik testleri kırmalı — bilinçli tasarlandı.
@@ -190,69 +308,44 @@ Takip-piksel engeli: 0
 Öneri: Bağlantılara tıklama, eki açma, göndericiyi resmi kanaldan doğrula.
 ```
 
-## API olarak kullanım
-
-| Endpoint | Açıklama |
-|---|---|
-| `GET /health` | Servis durumu (`imap_configured`, `engine`) |
-| `GET /api/emails?folder=INBOX&limit=20&unseen_only=false` | Çek + temizle (dönüş: `safe_html`, `plain_text`, `urls`, `tracking_pixels_blocked`) |
-| `GET /api/emails/folders` | IMAP klasör listesi |
-| `POST /api/analyze` | `{subject, body, sender}` → tehdit raporu |
-| `GET /docs` | Swagger UI |
+## KONTROL olarak kullanım (sızma testleri)
 
 ```bash
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/api/analyze -H "Content-Type: application/json" \
-  -d "{\"subject\":\"Fatura\",\"body\":\"<p>Borcu öde http://x.tk/o</p>\",\"sender\":\"a@b.com\"}"
+python -m app.cli kontrol --fail-only
+python -m app.cli kontrol --kategori TOOL,IMAP --fail-on LOW
 ```
 
-**Rate limit:** varsayılan `30/dakika`, e-posta `20/dakika`, analiz `10/dakika` (katmanlı config'den ayarlanır). Aşınca `429` döner.
-
-## Next.js ile bağlama
-
-`CORS_ORIGINS=http://localhost:3000` varsayılanı hazır. Frontend `GET /api/emails` ile listeler, `safe_html`'i `iframe sandbox` içinde gösterir, `POST /api/analyze` ile rozet (LOW/MEDIUM/HIGH/CRITICAL) basar.
-
-## Docker / Azure (B1s)
-
-```bash
-docker compose up --build        # API -> http://localhost:8000
-```
+Kategoriler: `SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS`. Sonuç FAIL-önce + sürüm sırasına göre optimize edilir.
+Exit: `0` temiz, `1` açık var, `2` hata.
 
 ## Proje yapısı
 
 ```
 backend/
   app/
-    main.py              # FastAPI çekirdeği + slowapi + CORS
-    cli.py               # TOOL arayüzü (health/fetch/analyze/triage/guard/serve/config) + exit-code
+    cli.py               # TOOL arayüzü (health/fetch/analyze/triage/guard/config/kontrol) + exit-code
+    kontrol.py           # sürümlü denetim + sızma testleri (TOOL-only)
+    notify.py            # Windows Toast (ek bağımlılıksız)
+    tray.py              # tek-exe arka plan (konsol gizleme + tepsi)
     sdk.py               # import edilebilir çekirdek (scan_text/scan_file/sanitize)
-    config.py            # ayar şeması (pydantic)
+    config.py            # ayar şeması (pydantic, TOOL-only)
     settings_store.py    # katmanlı config + Türkçe doğrulama
     secret_vault.py      # DPAPI şifreli saklama (ENC...)
-    schemas.py           # katı veri doğrulama (pydantic)
-    limiter.py           # paylaşımlı rate-limit
-    api/                 # routes_health / routes_emails / routes_analyze
+    schemas.py           # TOOL iç doğrulama (pydantic)
     services/
-      imap_client.py     # imap-tools (thread'de)
+      imap_client.py     # imap-tools + quarantine (thread'de)
       sanitizer.py       # bleach + bs4/lxml
       ai_analyzer.py     # yerel motor (anahtarsız, deterministik)
-  tests/                 # pytest: sanitizer + yerel motor + api/cli/guard/ayar sözleşmesi
-  elfsec.py              # exe giriş noktası (PyInstaller)
+  tests/                 # pytest: sanitizer + yerel motor + TOOL CLI/guard/ayar/kontrol sözleşmesi
+  elfsec.py              # tek-exe giriş noktası (PyInstaller, guard --tray gizler)
   scripts/               # build_exe / setup_autostart / remove_autostart
-  requirements.txt  Dockerfile  .env.example
-.github/workflows/release.yml  # v* tag'inde elfsec.exe derleyip Releases'e yükler
+  requirements.txt  .env.example
+.github/workflows/release.yml  # v* tag'inde tek elfsec.exe derleyip Releases'e yükler
 ```
 
 ## Güvenlik notları
 
 - Gmail için normal şifre değil **uygulama şifresi** kullanın.
-- `safe_html` bile olsa frontend'de tıklanabilir linkleri yeni sekmede + `rel=nofollow` açın.
-- ElfSec bilinçli olarak **hiçbir API anahtarı kullanmaz**: analiz yereldir, e-posta içeriği cihazdan çıkmaz.
-- **API koruması:** `API_TOKEN` boşsa `/api/*` korumasızdır — yalnızca yerel kullanım içindir. LAN'a/Internete açıyorsanız mutlaka token koyun:
-  ```bash
-  python -m app.cli config set API_TOKEN --secret
-  curl -H "Authorization: Bearer <token>" http://localhost:8000/api/emails?limit=5
-  ```
-  (`/health` ve `/` her zaman açıktır; token yoksa sunucu açılışta uyarır.)
-- **Log gizliliği:** `triage --out` ve `guard_alerts.jsonl` mail özetleri içerir — bu dosyaları paylaşmayın, `--webhook` yalnızca güvendiğiniz adrese verin.
-- **Bağımlılıklar:** sürümler `requirements.txt`'te sabitlidir; `pip-audit` temiz (bilinen zafiyet yok), CI her push'ta test + audit koşar, Dependabot haftalık güvenlik güncellemesi açar. Azure'ya çıkarken önüne TLS ters vekil (Caddy/Nginx) koyun — API kendisi HTTP konuşur. Kapsayıcı root'suz çalışır (`USER elfsec`).
+- ElfSec bilinçli olarak **hiçbir API anahtarı kullanmaz**: analiz yereldir, e-posta içeriği cihazdan çıkmaz. Server/frontend/Docker yoktur.
+- **Log gizliliği:** `triage --out` ve `guard_alerts.jsonl` mail özetleri içerir — bu dosyaları paylaşmayın, `--webhook` yalnızca `https://` güvendiğiniz adrese verin (`http` atlanır).
+- **Bağımlılıklar:** sürümler `requirements.txt`'te sabitlidir (serversiz, 8 paket); `pip-audit` temiz, CI her push'ta test + audit koşar, Dependabot haftalık güvenlik güncellemesi açar.

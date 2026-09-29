@@ -1,23 +1,18 @@
-"""API + CLI sözleşme testleri (geliştirici odaklı)."""
+"""TOOL CLI sözleşme testleri (serversiz)."""
 
-from fastapi.testclient import TestClient
+import pytest
 
-from app.cli import fail_on_exceeded, main as cli_main
-from app.main import app
-
-c = TestClient(app)
+from app.cli import clamp_limit, fail_on_exceeded, main as cli_main, validate_folder
+from app.sdk import scan_text
 
 
-def test_health_200():
-    r = c.get("/health")
-    assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+def test_health_ok():
+    assert cli_main(["health"]) == 0
 
 
-def test_analyze_benign_low():
-    r = c.post("/api/analyze", json={"subject": "selam", "body": "<p>merhaba</p>", "sender": "a@b.com"})
-    assert r.status_code == 200
-    assert r.json()["risk_level"] == "LOW"
+def test_analyze_benign_low_sdk():
+    r = scan_text(subject="selam", body="<p>merhaba</p>", sender="a@b.com")
+    assert r["risk_level"] == "LOW"
 
 
 def test_fail_on_sozlesmesi():
@@ -31,3 +26,22 @@ def test_cli_analyze_fail_on_exit_code(tmp_path):
     f.write_text("<p>Hesabiniz kapanacak hemen tikla http://evil.tk/verify sifrenizi gonderin</p>", encoding="utf-8")
     code = cli_main(["analyze-file", "--path", str(f), "--fail-on", "MEDIUM", "--quiet"])
     assert code == 1  # şüpheli -> CI kapısı kapanmalı
+
+
+def test_folder_enjeksiyon_reddi():
+    with pytest.raises(ValueError):
+        validate_folder("../INBOX")
+    assert validate_folder("INBOX") == "INBOX"
+    assert validate_folder("[Gmail]/Spam") == "[Gmail]/Spam"
+
+
+def test_limit_clamp():
+    assert clamp_limit(20) == 20
+    with pytest.raises(ValueError):
+        clamp_limit(0)
+    with pytest.raises(ValueError):
+        clamp_limit(9999)
+
+
+def test_guard_interval_min_reddi():
+    assert cli_main(["guard", "--interval", "0", "--once", "--quiet"]) == 2

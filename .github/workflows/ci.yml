@@ -17,8 +17,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python -m pytest tests -q
+      - run: pip install -r requirements.txt coverage
+      - run: coverage run -m pytest tests -q
+      - run: coverage report --fail-under=70
+      - run: python -m app.cli kontrol --fail-only --fail-on HIGH --quiet
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check app --select F,E9 --ignore E501
 
   audit:
     runs-on: ubuntu-latest
@@ -30,5 +45,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt pip-audit
+      - run: pip install -r requirements.txt pip-audit cyclonedx-bom
       - run: pip-audit -r requirements.txt
+      - run: cyclonedx-py requirements -i requirements.txt -o sbom.json --output-format JSON
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: backend/sbom.json

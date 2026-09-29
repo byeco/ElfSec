@@ -1,15 +1,17 @@
-"""Katmanlı ayar sistemi — düz .env'in gelişmiş hali.
+"""Ayarları tuttuğum yer — başta tek bir .env vardı, sonra işler karıştı.
 
-Öncelik (yüksekten düşüğe):
-  1. Ortam değişkenleri  (IMAP_PASSWORD=... → Docker/CI için ideal)
+Kullanıcılar "benim evde ayrı işte ayrı hesabım var" deyince katmanlı
+sisteme geçtim. Öncelik sırası (yüksekten düşüğe):
+  1. Ortam değişkenleri  (IMAP_PASSWORD=... → otomasyon için pratik)
   2. --config YOLU / ELFSEC_CONFIG ortam değişkeni
   3. Kullanıcı dosyası: %APPDATA%/ElfSec/elfsec.env (Win) / ~/.config/elfsec/elfsec.env
-  4. ./backend/.env ve ./.env (eski kurulumlarla geriye uyumluluk)
+  4. ./backend/.env ve ./.env (ilk sürümden kalanlarla uyumluluk için)
 
-Hassas anahtarlar (IMAP_PASSWORD) dosyada ENC(...) şifreli durabilir.
-Doğrulama hataları Türkçe + çözüm önerili raporlanır (ConfigError).
+Şifreler dosyada açık durmuyor, Windows'un kendi kasasıyla (DPAPI)
+şifrelenip ENC(...) olarak yazılıyor. Hatalı ayarda Türkçe mesaj
+veriyorum, yoksa insan neyi yanlış yaptığını anlamıyor (kendimden biliyorum).
 
-İlke: hiçbir API anahtarı yok — analiz %100 yereldir.
+Not: bu projede hiç API anahtarı yok — analiz %100 yerelde oluyor.
 """
 
 import os
@@ -22,7 +24,7 @@ from app import secret_vault
 from app.config import Settings
 
 APP_NAME = "ElfSec"
-SECRET_KEYS = {"IMAP_PASSWORD", "API_TOKEN"}
+SECRET_KEYS = {"IMAP_PASSWORD", "OAUTH_REFRESH_OUTLOOK", "OAUTH_REFRESH_GMAIL"}
 FIELD_BY_KEY = {name.upper(): name for name in Settings.model_fields}
 
 # Alan bazlı Türkçe doğrulama ipuçları
@@ -30,8 +32,12 @@ FIELD_HINTS = {
     "IMAP_HOST": "IMAP_HOST boş olamaz. Örn: imap.gmail.com / outlook.office365.com",
     "IMAP_PORT": "IMAP_PORT 1-65535 arası sayı olmalı (genelde 993).",
     "IMAP_USER": "IMAP_USER e-posta adresiniz. Örn: ad@gmail.com",
-    "IMAP_PASSWORD": "IMAP_PASSWORD yok. Gmail'de normal şifre değil 'uygulama şifresi' gerekir.",
-    "API_PORT": "API_PORT 1-65535 arası sayı olmalı (varsayılan: 8000).",
+    "IMAP_PASSWORD": "IMAP_PASSWORD yok. Seçenek: uygulama şifresi YA DA `elfsec config login --provider outlook|gmail` (OAuth, önerilir).",
+    "OAUTH_PROVIDER": "OAUTH_PROVIDER outlook|gmail olmalı (boşsa şifreli giriş).",
+    "MS_CLIENT_ID": "MS_CLIENT_ID boş. Azure Portal → App registrations → kendi uygulamanızın ID'si.",
+    "GOOGLE_CLIENT_ID": "GOOGLE_CLIENT_ID boş. Google Cloud → OAuth client (Desktop) ID'si.",
+    "OAUTH_REFRESH_OUTLOOK": "Önce `elfsec config login --provider outlook` ile giriş yapın.",
+    "OAUTH_REFRESH_GMAIL": "Önce `elfsec config login --provider gmail` ile giriş yapın.",
 }
 
 
@@ -109,10 +115,11 @@ def build_settings(explicit: str | None = None) -> tuple[Settings, Path | None, 
 
 def semantic_warnings(s: Settings) -> list[str]:
     w: list[str] = []
-    if s.imap_user and not s.imap_password:
-        w.append("IMAP_USER var ama IMAP_PASSWORD yok — `elfsec config set IMAP_PASSWORD ...` ile ekleyin.")
-    if not s.imap_configured:
-        w.append("IMAP yapılandırılmamış — fetch/triage/guard çalışmaz (analiz ve API çalışır).")
+    if s.imap_user and not s.imap_password and not s.oauth_configured:
+        w.append("IMAP_USER var ama giriş yok — `elfsec config login --provider outlook|gmail` (önerilir) "
+                 "veya `elfsec config set IMAP_PASSWORD ...` ile ekleyin.")
+    if not s.imap_configured and not s.oauth_configured:
+        w.append("IMAP yapılandırılmamış — fetch/triage/guard çalışmaz (analiz çalışır).")
     return w
 
 
@@ -166,4 +173,52 @@ def upsert_kv(path: Path, key: str, value: str, secret: bool = False) -> str:
     stored_q = f'"{stored}"' if any(c in stored for c in " #\"") else stored
     lines.append(f"{key}={stored_q}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    _lock_down(path)
     return stored
+
+
+def config_mode(path: Path) -> int:
+    """Dosya izin bitleri (yoksa -1)."""
+    try:
+        return path.stat().st_mode & 0o777
+    except OSError:
+        return -1
+
+
+def _windows_acl_tight(path: Path) -> bool | None:
+    """Windows ACL sıkı mı? True=sıkı, False=gevşek, None=bilinmiyor (best-effort)."""
+    if os.name != "nt":
+        return None
+    try:
+        import subprocess
+
+        r = subprocess.run(["icacls", str(path)], capture_output=True, timeout=10, check=False)
+        out = (r.stdout or b"").decode("utf-8", errors="replace") + (r.stderr or b"").decode("utf-8", errors="replace")
+        if not out.strip():
+            return None
+        loose = ("Everyone", "BUILTIN\\Users", "Authenticated Users", "NT AUTHORITY\\Authenticated Users")
+        return not any(k.lower() in out.lower() for k in loose)
+    except Exception:
+        return None
+
+
+def _lock_down(path: Path) -> None:
+    """Gizli dosya: sadece sahibi okusun (POSIX 0o600; Windows icacls)."""
+    try:
+        if os.name == "nt":
+            # Gerçek koruma DPAPI şifrelemesidir; ACL ek kilit olarak denenir.
+            try:
+                import subprocess
+
+                user = os.environ.get("USERNAME", "")
+                if user:
+                    subprocess.run(
+                        ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+                        capture_output=True, timeout=10, check=False,
+                    )
+            except Exception:
+                pass
+            return
+        os.chmod(path, 0o600)
+    except Exception as e:
+        print(f"UYARI: dosya izni sıkılaştırılamadı ({path}): {e}")

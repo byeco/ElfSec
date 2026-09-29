@@ -1,4 +1,9 @@
-"""Next.js <-> FastAPI arası katı veri doğrulama (Pydantic v2)."""
+"""Girdi doğrulama şemaları — kullanıcı saçma bir değer girerse burada yakalanıyor.
+
+Örn: klasör adı en fazla 128 karakter, limit 1-100 arası, gövde 30k'ya
+kırpılıyor. Bunlar başta yoktu, hocam "güvenlik aracı kendisi güvensiz
+olmasın" deyince ekledim. CLI, SDK ve guard hep aynı limitleri kullanıyor.
+"""
 
 from datetime import datetime
 

@@ -220,5 +220,10 @@ __marimo__/
 # ElfSec — çalışma anında üretilir, repoya girmez
 backend/guard_start.cmd
 backend/guard_alerts.jsonl
+backend/guard_errors.jsonl
+guard_errors.jsonl
+backend/quarantine.jsonl
+quarantine.jsonl
 backend/.guard_seen.json
+.guard_seen.json
 elfsec.spec
