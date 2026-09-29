@@ -1,6 +1,6 @@
 pydantic==2.11.7
 pydantic-settings==2.10.1
-imap-tools==1.11.0
+imap-tools==1.15.0
 bleach==6.4.0
 beautifulsoup4==4.13.5
 lxml==6.1.3
