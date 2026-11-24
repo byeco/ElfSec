@@ -5,7 +5,7 @@
   <title>ElfSec Güvenlik Eklentisi</title>
   <style>
     body {
-      width: 340px;
+      width: 360px;
       margin: 0;
       padding: 14px;
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -14,10 +14,14 @@
       font-size: 13px;
     }
     .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    h1 { font-size: 15px; margin: 0 0 8px 0; color: #34d399; }
+    h1 { font-size: 15px; margin: 0; color: #34d399; }
     .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1e293b; }
     .pill.ok { background: #065f46; color: #d1fae5; }
     .pill.warn { background: #78350f; color: #fef3c7; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+    .stat { background: #1e293b; border-radius: 8px; padding: 8px; text-align: center; }
+    .stat strong { display: block; font-size: 16px; color: #f8fafc; }
+    .stat span { font-size: 11px; color: #94a3b8; }
     .card { background: #1e293b; border-radius: 8px; padding: 10px; margin-top: 10px; }
     textarea {
       width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #334155;
@@ -27,6 +31,7 @@
       margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px;
       background: #10b981; color: #052e16; font-weight: 700; cursor: pointer;
     }
+    button.secondary { background: #334155; color: #f8fafc; width: 100%; margin-top: 10px; font-weight: 600; }
     ul { margin: 6px 0 0 16px; padding: 0; }
     li { margin-bottom: 4px; font-size: 12px; }
     .muted { color: #94a3b8; font-size: 11px; }
@@ -34,12 +39,18 @@
 </head>
 <body>
   <div class="row">
-    <h1>ElfSec Güvenlik Eklentisi</h1>
+    <h1>ElfSec Güvenlik</h1>
     <span id="nativeStatus" class="pill warn">Kontrol ediliyor</span>
   </div>
 
+  <div class="stats">
+    <div class="stat"><strong id="statScanned">0</strong><span>Taranan</span></div>
+    <div class="stat"><strong id="statThreats">0</strong><span>Tehdit</span></div>
+    <div class="stat"><strong id="statVerified">0</strong><span>Doğrulanan</span></div>
+  </div>
+
   <div class="card row">
-    <span>Webmail Otomatik Koruması</span>
+    <span>Otomatik Webmail & İndirme Kalkanı</span>
     <label>
       <input type="checkbox" id="enabledToggle" checked />
       Aktif
@@ -54,9 +65,11 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:600;">Son Webmail Alarmları</div>
+    <div style="font-weight:600;">Son Güvenlik Alarmları</div>
     <ul id="alertsList"><li class="muted">Henüz alarm yok.</li></ul>
   </div>
+
+  <button id="optionsBtn" type="button" class="secondary">Ayarlar, Kurallar & Mağaza Bağlantısı</button>
 
   <script src="popup.js"></script>
 </body>

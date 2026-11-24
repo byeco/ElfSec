@@ -867,6 +867,8 @@ def _check_win(root: Path) -> list[dict]:
                              "v1.3.0", "install_windows_plugin.ps1 + uninstall_windows_plugin.ps1 olmalı."))
         out.append(_skip_exe("WIN-10", "WIN", "Tarayıcı MV3 eklentisi + deterministik ID",
                              "v1.4.0", "extension/manifest.json ve fallback_analyzer.js bulunmalı."))
+        out.append(_skip_exe("WIN-11", "WIN", "Mağaza hazır uzantı paketi (_locales, options, PRIVACY, pack)",
+                             "v1.6.0", "_locales/tr+en, options.html, PRIVACY.md ve pack_extensions.py olmalı."))
     else:
         inst = root / "backend" / "scripts" / "install_windows_plugin.ps1"
         uninst = root / "backend" / "scripts" / "uninstall_windows_plugin.ps1"
@@ -893,6 +895,18 @@ def _check_win(root: Path) -> list[dict]:
                               "v1.4.0", "extension/manifest.json anahtarı DEFAULT_EXTENSION_ID ile eşleşmeli."))
         except Exception as e:
             out.append(_bulgu("WIN-10", "WIN", "Tarayıcı MV3 eklentisi", "FAIL", str(e), "v1.4.0", "extension/ dosyaları geçerli olmalı."))
+        req_store = [
+            root / "extension" / "_locales" / "tr" / "messages.json",
+            root / "extension" / "_locales" / "en" / "messages.json",
+            root / "extension" / "options.html",
+            root / "extension" / "PRIVACY.md",
+            root / "backend" / "scripts" / "pack_extensions.py",
+        ]
+        missing = [p.name for p in req_store if not p.exists()]
+        out.append(_bulgu("WIN-11", "WIN", "Mağaza hazır uzantı paketi (_locales, options, PRIVACY, pack)",
+                          "PASS" if not missing else "FAIL",
+                          "hazır" if not missing else f"eksik: {', '.join(missing)}",
+                          "v1.6.0", "Mağaza yayını için dil dosyaları, ayarlar, gizlilik politikası ve paketleyici bulunmalı."))
     return out
 
 

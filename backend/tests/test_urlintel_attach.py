@@ -63,6 +63,27 @@ def test_expand_url_hatada_girdi():
     assert expand_url("http://127.0.0.1:9/yok", timeout=1) == "http://127.0.0.1:9/yok"
 
 
+def test_expand_url_ssrf_korumasi():
+    # Loopback / özel ağ / link-local (bulut metadata) / kimlik bilgili URL'ler
+    # hiç ağ isteği yapılmadan olduğu gibi döner.
+    for bad in (
+        "http://127.0.0.1:8080/admin",
+        "http://10.0.0.5/internal",
+        "http://192.168.1.1/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://[::1]:9000/",
+        "http://user:pass@example.com/",
+        "file:///C:/Windows/win.ini",
+    ):
+        assert expand_url(bad, timeout=1) == bad
+
+
+def test_maybe_expand_ozel_adreslere_dokunmaz():
+    private = ["http://127.0.0.1:9/x", "http://169.254.169.254/latest"]
+    urls, mapping = maybe_expand(private, True)
+    assert urls == private and mapping == {}
+
+
 def test_ek_uctan_uca():
     r = local_analyze("fatura", "ekte", [], "a@b.com", None,
                       [{"filename": "fatura.pdf.exe", "size": 10, "content_type": "x"}])

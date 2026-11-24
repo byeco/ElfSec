@@ -227,3 +227,8 @@ quarantine.jsonl
 backend/.guard_seen.json
 .guard_seen.json
 elfsec.spec
+
+# Mağaza paketleri (pack_extensions.py tarafından üretilir)
+/elfsec-*.zip
+/elfsec-*.zip.sha256
+/extension.zip

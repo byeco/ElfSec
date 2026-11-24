@@ -1,4 +1,4 @@
-# ElfSec Sistem Durum Çizelgesi (baz: v1.5.0)
+# ElfSec Sistem Durum Çizelgesi (baz: v1.6.0)
 
 > Tek exe: `elfsec.exe` (CLI + guard + web API). Web API opt-in'dir,
 > varsayılan localhost + stdlib-only (ek bağımlılık yok).
@@ -135,6 +135,14 @@
 | 54 | Artımlı senkron (`UIDVALIDITY` + son UID takibi, sadece yeni mailler) | [ ] |
 | 55 | Toplu fetch (`bulk`) + tur başına süre metriği (`--profile`) | [ ] |
 | 56 | Kural paketi güncellemesi (`update --rules` ile imzalı rules.json) | [ ] |
+
+### v1.6.0 — Mağaza Hazır Tarayıcı Uzantısı (Chrome / Edge / Firefox) [x]
+
+| # | İş | Dosya | Durum |
+|---|---|---|---|
+| 77 | Link hover önizleme + modern engel modalı + takip pikseli sayacı + tarayıcı İndirme Kalkanı | `extension/content.js`, `background.js`, `fallback_analyzer.js`, `native_host.py` | [x] |
+| 78 | `_locales` TR/EN, `options.html`, istatistikler, `PRIVACY.md`, `STORE_LISTING.md` | `extension/` | [x] |
+| 79 | `pack_extensions.py` (Chrome/Edge Store + Firefox AMO + Unpacked zip) + `WIN-11` + `release.yml` | `scripts/pack_extensions.py`, `kontrol.py`, `release.yml` | [x] |
 
 ### v1.5.0 — Doğrulanmış Resmi Marka Göndericileri [x]
 

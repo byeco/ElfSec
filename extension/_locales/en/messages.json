@@ -1,0 +1,20 @@
+{
+  "appName": {
+    "message": "ElfSec Security Extension"
+  },
+  "appDesc": {
+    "message": "100% local phishing, brand impersonation, link hover, and download protection for Gmail, Outlook Web, Yahoo, Yandex, iCloud, and Proton Mail."
+  },
+  "ctxScanSelection": {
+    "message": "Scan Selected Text with ElfSec"
+  },
+  "ctxScanLink": {
+    "message": "Scan Link with ElfSec"
+  },
+  "bannerClean": {
+    "message": "No obvious threat detected"
+  },
+  "bannerRescan": {
+    "message": "Rescan"
+  }
+}

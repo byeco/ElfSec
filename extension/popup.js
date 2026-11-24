@@ -6,6 +6,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const scanBtn = document.getElementById("scanBtn");
   const resultEl = document.getElementById("quickResult");
   const alertsEl = document.getElementById("alertsList");
+  const optionsBtn = document.getElementById("optionsBtn");
+  const statScanned = document.getElementById("statScanned");
+  const statThreats = document.getElementById("statThreats");
+  const statVerified = document.getElementById("statVerified");
 
   function refresh() {
     chrome.runtime.sendMessage({ type: "PING" }, (ping) => {
@@ -18,15 +22,20 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    chrome.runtime.sendMessage({ type: "GET_STATE" }, (st) => {
+    chrome.runtime.sendMessage({ type: "GET_FULL_STATE" }, (st) => {
       if (!st) return;
       toggleEl.checked = Boolean(st.enabled);
+      const stats = st.stats || {};
+      statScanned.textContent = String((stats.emailsScanned || 0) + (stats.downloadsChecked || 0));
+      statThreats.textContent = String(stats.threatsBlocked || 0);
+      statVerified.textContent = String(stats.verifiedMatched || 0);
+
       alertsEl.innerHTML = "";
       const items = Array.isArray(st.recentAlerts) ? st.recentAlerts : [];
       if (!items.length) {
         const li = document.createElement("li");
         li.className = "muted";
-        li.textContent = "Henüz şüpheli webmail yakalanmadı.";
+        li.textContent = "Henüz şüpheli e-posta veya indirme yakalanmadı.";
         alertsEl.appendChild(li);
         return;
       }
@@ -54,6 +63,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const reason = (rep.reasons && rep.reasons[0]) || rep.summary || "";
       resultEl.textContent = `[${rep.risk_level}] ${rep.risk_score}/100 (${rep.via}) — ${reason}`;
     });
+  });
+
+  optionsBtn.addEventListener("click", () => {
+    if (chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    }
   });
 
   refresh();

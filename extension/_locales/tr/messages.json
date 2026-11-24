@@ -1,0 +1,20 @@
+{
+  "appName": {
+    "message": "ElfSec Güvenlik Eklentisi"
+  },
+  "appDesc": {
+    "message": "Gmail, Outlook Web, Yahoo, Yandex, iCloud ve Proton Mail için %100 yerel phishing, marka taklidi, link ve indirme koruması."
+  },
+  "ctxScanSelection": {
+    "message": "ElfSec ile Seçili Metni Tara"
+  },
+  "ctxScanLink": {
+    "message": "ElfSec ile Bağlantıyı Tara"
+  },
+  "bannerClean": {
+    "message": "Belirgin tehdit bulunamadı"
+  },
+  "bannerRescan": {
+    "message": "Tekrar Tara"
+  }
+}

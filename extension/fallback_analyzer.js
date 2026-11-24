@@ -1,4 +1,4 @@
-/* ElfSec Tarayıcı Yedek Güvenlik Motoru (Native Host bağlı değilken 100% çevrimdışı çalışır). */
+/* ElfSec Tarayıcı Yedek Güvenlik Motoru (%100 yerel, ağ/API yok). */
 (function (root) {
   "use strict";
 
@@ -47,8 +47,12 @@
     "paypal", "apple", "microsoft", "netflix", "vodafone", "turkcell", "e-devlet", "edevlet",
     "ptt", "kargo", "trendyol", "hepsiburada", "amazon"
   ];
-  var RISKY_EXT = [".exe", ".zip", ".rar", ".scr", ".js", ".vbs", ".bat", ".ps1", ".msi", ".jar", ".iso", ".lnk"];
-  var DOC_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".png", ".txt"];
+  var EXEC_EXT = [".exe", ".msi", ".scr", ".com", ".pif", ".cpl", ".dll", ".iso", ".img", ".jar"];
+  var SCRIPT_EXT = [".ps1", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".hta", ".reg", ".lnk"];
+  var MACRO_EXT = [".docm", ".xlsm", ".pptm", ".dotm", ".xltm", ".potm"];
+  var ARCHIVE_EXT = [".zip", ".rar", ".7z"];
+  var RISKY_EXT = EXEC_EXT.concat(SCRIPT_EXT).concat(ARCHIVE_EXT);
+  var DOC_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".txt"];
 
   var VERIFIED_BRANDS = [
     {
@@ -86,56 +90,6 @@
     { id: "trendyol", label: "Trendyol", aliases: ["trendyol"], domains: ["trendyol.com", "mail.trendyol.com"], emails: ["no-reply@trendyol.com"] },
     { id: "hepsiburada", label: "Hepsiburada", aliases: ["hepsiburada"], domains: ["hepsiburada.com"], emails: ["no-reply@hepsiburada.com"] }
   ];
-
-  function domainMatches(dom, officialList) {
-    if (!dom) return false;
-    return officialList.some(function (od) {
-      return dom === od || dom.endsWith("." + od);
-    });
-  }
-
-  function verifySender(sender, subject) {
-    var raw = String(sender || "");
-    var m = raw.match(/([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})/);
-    var addr = m ? m[1].toLowerCase() : "";
-    var dom = addr.indexOf("@") !== -1 ? addr.split("@")[1] : "";
-    var disp = m ? (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).toLowerCase() : raw.toLowerCase();
-    var subj = String(subject || "").toLowerCase();
-
-    for (var i = 0; i < VERIFIED_BRANDS.length; i++) {
-      var b = VERIFIED_BRANDS[i];
-      var exact = addr && b.emails.indexOf(addr) !== -1;
-      if (exact || domainMatches(dom, b.domains)) {
-        return {
-          status: "VERIFIED_DOMAIN",
-          brand: b.label,
-          matched_address: addr,
-          exact_official_address: exact,
-          detail: "Bilinen resmi '" + b.label + "' adresi/alan adı eşleşti (" + (addr || dom) + ")."
-        };
-      }
-    }
-
-    if (dom) {
-      for (var j = 0; j < VERIFIED_BRANDS.length; j++) {
-        var b2 = VERIFIED_BRANDS[j];
-        var claimed = b2.aliases.some(function (a) {
-          var compact = a.replace(/\s+/g, "");
-          return disp.indexOf(a) !== -1 || subj.indexOf(a) !== -1 || (compact.length >= 4 && dom.indexOf(compact) !== -1);
-        });
-        if (claimed) {
-          return {
-            status: "IMPERSONATION",
-            brand: b2.label,
-            matched_address: addr,
-            exact_official_address: false,
-            detail: "Doğrulanmamış marka göndericisi: '" + b2.label + "' adına geliyor ancak resmi alan adı (" + b2.domains[0] + ") değil (" + dom + ")!"
-          };
-        }
-      }
-    }
-    return { status: "UNKNOWN", brand: "", matched_address: addr, exact_official_address: false, detail: "" };
-  }
 
   function extractUrls(text) {
     var re = /https?:\/\/[^\s<>'"]+/gi;
@@ -196,6 +150,72 @@
     return { pts: 0, reason: "" };
   }
 
+  function domainMatches(dom, officialList) {
+    if (!dom) return false;
+    return (officialList || []).some(function (od) {
+      var o = String(od || "").toLowerCase().trim();
+      return o && (dom === o || dom.endsWith("." + o));
+    });
+  }
+
+  function verifySender(sender, subject, customBrands) {
+    var raw = String(sender || "");
+    var m = raw.match(/([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})/);
+    var addr = m ? m[1].toLowerCase() : "";
+    var dom = addr.indexOf("@") !== -1 ? addr.split("@")[1] : "";
+    var disp = m ? (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).toLowerCase() : raw.toLowerCase();
+    var subj = String(subject || "").toLowerCase();
+
+    var allBrands = VERIFIED_BRANDS.slice();
+    if (Array.isArray(customBrands)) {
+      customBrands.forEach(function (cb) {
+        if (cb && cb.label && Array.isArray(cb.domains) && cb.domains.length) {
+          allBrands.unshift({
+            id: String(cb.id || cb.label).toLowerCase(),
+            label: String(cb.label),
+            aliases: Array.isArray(cb.aliases) && cb.aliases.length ? cb.aliases.map(function (a) { return String(a).toLowerCase(); }) : [String(cb.label).toLowerCase()],
+            domains: cb.domains.map(function (d) { return String(d).toLowerCase().trim(); }),
+            emails: Array.isArray(cb.emails) ? cb.emails.map(function (e) { return String(e).toLowerCase().trim(); }) : []
+          });
+        }
+      });
+    }
+
+    for (var i = 0; i < allBrands.length; i++) {
+      var b = allBrands[i];
+      var exact = addr && b.emails.indexOf(addr) !== -1;
+      if (exact || domainMatches(dom, b.domains)) {
+        return {
+          status: "VERIFIED_DOMAIN",
+          brand: b.label,
+          matched_address: addr,
+          exact_official_address: exact,
+          detail: "Bilinen resmi '" + b.label + "' adresi/alan adı eşleşti (" + (addr || dom) + ")."
+        };
+      }
+    }
+
+    if (dom) {
+      for (var j = 0; j < allBrands.length; j++) {
+        var b2 = allBrands[j];
+        var claimed = b2.aliases.some(function (a) {
+          var compact = a.replace(/\s+/g, "");
+          return disp.indexOf(a) !== -1 || subj.indexOf(a) !== -1 || (compact.length >= 4 && dom.indexOf(compact) !== -1);
+        });
+        if (claimed) {
+          return {
+            status: "IMPERSONATION",
+            brand: b2.label,
+            matched_address: addr,
+            exact_official_address: false,
+            detail: "Doğrulanmamış marka göndericisi: '" + b2.label + "' adına geliyor ancak resmi alan adı (" + b2.domains[0] + ") değil (" + dom + ")!"
+          };
+        }
+      }
+    }
+    return { status: "UNKNOWN", brand: "", matched_address: addr, exact_official_address: false, detail: "" };
+  }
+
   function levelFromScore(score) {
     if (score < 25) return "LOW";
     if (score < 50) return "MEDIUM";
@@ -203,12 +223,39 @@
     return "CRITICAL";
   }
 
-  function analyzeEmail(payload) {
+  function analyzeEmail(payload, options) {
+    var opts = options || {};
     var subject = String((payload && payload.subject) || "");
     var sender = String((payload && payload.sender) || "");
     var body = String((payload && payload.body) || "");
     var blob = subject + "\n" + body;
     var low = blob.toLowerCase();
+
+    var sm = sender.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+    var dom = sm ? sm[1].toLowerCase() : "";
+
+    if (Array.isArray(opts.trustedDomains) && dom && domainMatches(dom, opts.trustedDomains)) {
+      return {
+        ok: true,
+        source: "browser_fallback",
+        engine: "elfsec-browser-fallback/1.0",
+        risk_score: 0,
+        risk_level: "LOW",
+        summary: "Güvenilen alan adı listesinde (" + dom + ").",
+        reasons: ["Kullanıcı güvenilen alan adı izin listesi eşleşti."],
+        suspicious_urls: [],
+        phishing_detected: false,
+        prompt_injection_detected: false,
+        sender_verification: {
+          status: "VERIFIED_DOMAIN",
+          brand: dom,
+          matched_address: sender,
+          exact_official_address: false,
+          detail: "Kullanıcı tarafından güvenilen alan adı: " + dom
+        },
+        recommended_action: "Güvenilen gönderici."
+      };
+    }
 
     var score = 0;
     var reasons = [];
@@ -258,8 +305,6 @@
       }
     });
 
-    var sm = sender.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-    var dom = sm ? sm[1].toLowerCase() : "";
     if (dom && FREEMAIL.indexOf(dom) !== -1) {
       var head = low.slice(0, 500) + " " + sender.toLowerCase();
       if (BRAND_WORDS.some(function (b) { return head.indexOf(b) !== -1; })) {
@@ -285,7 +330,7 @@
       }
     });
 
-    var sv = verifySender(sender, subject);
+    var sv = verifySender(sender, subject, opts.customBrands);
     if (sv.status === "IMPERSONATION") {
       score += 30;
       reasons.push(sv.detail);
@@ -353,9 +398,69 @@
     };
   }
 
+  function analyzeDownload(item) {
+    var rawName = String((item && item.filename) || "");
+    var baseName = rawName.split(/[\\/]/).pop() || rawName;
+    var low = baseName.toLowerCase();
+    var url = String((item && item.url) || "");
+
+    var score = 0;
+    var reasons = [];
+    var susUrls = [];
+
+    if (/[\u202e\u202d\u2066-\u2069]/.test(baseName)) {
+      score += 35;
+      reasons.push("Unicode RLO dosya adı sahteciliği: " + baseName);
+    }
+
+    var parts = low.split(".");
+    var lastExt = parts.length >= 2 ? "." + parts[parts.length - 1] : "";
+    var prevExt = parts.length >= 3 ? "." + parts[parts.length - 2] : "";
+    if (parts.length >= 3 && (EXEC_EXT.indexOf(lastExt) !== -1 || SCRIPT_EXT.indexOf(lastExt) !== -1) && DOC_EXT.indexOf(prevExt) !== -1) {
+      score += 45;
+      reasons.push("Çift uzantı tuzağı (" + prevExt + lastExt + "): " + baseName);
+    } else if (SCRIPT_EXT.indexOf(lastExt) !== -1) {
+      score += 35;
+      reasons.push("Riskli betik/kısayol indirmesi (" + lastExt + "): " + baseName);
+    } else if (EXEC_EXT.indexOf(lastExt) !== -1) {
+      score += 25;
+      reasons.push("Çalıştırılabilir/disk kalıbı indirmesi (" + lastExt + "): " + baseName);
+    } else if (MACRO_EXT.indexOf(lastExt) !== -1) {
+      score += 20;
+      reasons.push("Makrolu Office belgesi (" + lastExt + "): " + baseName);
+    } else if (ARCHIVE_EXT.indexOf(lastExt) !== -1) {
+      score += 8;
+      reasons.push("Arşiv dosyası (" + lastExt + ") — açmadan taratın.");
+    }
+
+    if (url) {
+      var ures = checkUrl(url);
+      if (ures.pts > 0) {
+        score += ures.pts;
+        susUrls.push(url);
+        reasons.push("İndirme kaynağı şüpheli: " + ures.reason);
+      }
+    }
+
+    score = Math.max(0, Math.min(100, score));
+    return {
+      ok: true,
+      source: "browser_download",
+      engine: "elfsec-browser-fallback/1.0",
+      filename: baseName,
+      url: url,
+      risk_score: score,
+      risk_level: levelFromScore(score),
+      reasons: reasons.length ? reasons : ["İndirilen dosya uzantısı ve kaynağı temiz görünüyor."],
+      suspicious_urls: susUrls,
+      summary: reasons.length ? "İndirme analizi: " + reasons[0] : "Temiz indirme."
+    };
+  }
+
   var api = {
     analyzeEmail: analyzeEmail,
     analyzeText: analyzeText,
+    analyzeDownload: analyzeDownload,
     verifySender: verifySender,
     extractUrls: extractUrls,
     checkUrl: checkUrl

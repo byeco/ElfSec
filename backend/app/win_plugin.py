@@ -215,7 +215,10 @@ def register_browser_hosts(
 
     exe = resolve_exe_path(exe_path)
     target_dir = (default_user_config_path().parent if user_only else machine_data_dir()) / "native-host"
-    files = write_native_host_files(target_dir, exe, extension_ids=extension_ids)
+    try:
+        files = write_native_host_files(target_dir, exe, extension_ids=extension_ids)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
     entries = build_browser_registry_entries(
         files["chromium_manifest"],
         files["firefox_manifest"],

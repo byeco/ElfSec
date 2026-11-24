@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "ElfSec Güvenlik Eklentisi",
-  "version": "1.5.0",
-  "description": "Gmail, Outlook Web, Yahoo, Yandex, iCloud ve Proton Mail için yerel phishing, sahte gönderici ve ClickFix koruması.",
+  "default_locale": "tr",
+  "name": "__MSG_appName__",
+  "version": "1.6.0",
+  "description": "__MSG_appDesc__",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlv1uyGqqLdCcFb4CZHbjYl/QVBSr9QhA18qMIJK5KDM1F404eFLS2WrBcZpxwFxQudsO1/OSLpO1qVl9ypdAAv71PVhnboM4WE01FjjDY5amtZg94d3D2FLfRXtBT9DM/VflqALRJCFT4EYUmzdGFrx3Qwfxy+M6sK77dfiIGU/vtPRS5+Qb8a9e/I+FAU2ys/oqpPQVRi3tz1S2wFHVEiiMQ1Ta23ehl88ysTWT9c7bzH2Gn/iKsVmZM2Qrj7dS9rrtMqA0GDoDnpqmlZGzaFiU1jywbxBzAR3fWT7tGLZAoBmd6MLxBiVslUxxmEatZAMc8yAJPXhJunbHZdTgEQIDAQAB",
   "browser_specific_settings": {
     "gecko": {
@@ -19,15 +20,19 @@
     "nativeMessaging",
     "contextMenus",
     "storage",
-    "activeTab"
+    "downloads",
+    "notifications"
   ],
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["fallback_analyzer.js", "background.js"]
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ElfSec Güvenlik Eklentisi",
+    "default_title": "__MSG_appName__",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -45,7 +50,7 @@
         "https://mail.yandex.com/*",
         "https://mail.yandex.com.tr/*",
         "https://mail.yandex.ru/*",
-        "https://www.icloud.com/*",
+        "https://www.icloud.com/mail*",
         "https://mail.proton.me/*"
       ],
       "js": ["content.js"],

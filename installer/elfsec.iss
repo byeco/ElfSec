@@ -3,7 +3,7 @@
 ; Not: SmartScreen için Authenticode imzası releaser'da eklenir (signtool).
 
 #define MyAppName "ElfSec"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion "1.6.0"
 #define MyAppExeName "elfsec.exe"
 
 [Setup]

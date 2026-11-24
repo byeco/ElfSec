@@ -12,6 +12,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import struct
 import sys
 from datetime import datetime, timezone
@@ -29,6 +30,9 @@ NATIVE_HOST_NAME = "com.elfsec.guard"
 DEFAULT_EXTENSION_ID = "jkmbfppdffpiodlmikbdfdihdkejcfjj"
 FIREFOX_EXTENSION_ID = "elfsec-guard@elfsec.local"
 MAX_NATIVE_MSG_BYTES = 1_048_576  # 1 MB
+MAX_SCAN_PATH_CHARS = 4096
+MAX_ALERT_LOG_BYTES = 2 * 1024 * 1024  # 2 MB — sonra guard_alerts.jsonl.1'e döndürülür
+CHROMIUM_EXT_ID_RE = re.compile(r"^[a-p]{32}$")
 
 
 def derive_chrome_extension_id(spki_b64: str) -> str:
@@ -96,6 +100,12 @@ def _append_webmail_alert(report: dict, alert_log: str = "") -> None:
     try:
         lp = Path(alert_log) if alert_log else _default_alert_log_path()
         lp.parent.mkdir(parents=True, exist_ok=True)
+        # Sonsuz büyümeyi engelle: eşik aşılınca tek yedek dosyaya döndür.
+        try:
+            if lp.exists() and lp.stat().st_size >= MAX_ALERT_LOG_BYTES:
+                os.replace(lp, lp.with_name(lp.name + ".1"))
+        except OSError:
+            pass
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         row = {**report, "alerted_at": now}
         with open(lp, "a", encoding="utf-8") as fh:
@@ -174,6 +184,40 @@ def handle_native_request(req: dict, alert_log: str = "") -> dict:
             "version": __version__,
         }
 
+    if action == "scan_file":
+        fpath = str(req.get("path", "") or "").strip()
+        if not fpath:
+            return {"ok": False, "error": "Dosya yolu boş."}
+        # GÜVENLİK: Native host bir "confused deputy" olmasın.
+        # - Ağ (UNC) yolları: \\saldirgan\paylasim → SMB/NTLM sızıntısı riski.
+        # - Aygıt yolları (\\?\, \\.\): ham disk/cihaz erişimi riski.
+        # - Sembolik bağlantılar: beklenmeyen hedefe yönlendirme riski.
+        if len(fpath) > MAX_SCAN_PATH_CHARS or "\x00" in fpath:
+            return {"ok": False, "error": "Geçersiz dosya yolu."}
+        if fpath.startswith(("\\\\", "//")):
+            return {"ok": False, "error": "Ağ (UNC) yolları taranamaz."}
+        p = Path(fpath)
+        if not p.is_absolute():
+            return {"ok": False, "error": "Dosya yolu mutlak olmalı."}
+        try:
+            if p.is_symlink():
+                return {"ok": False, "error": "Sembolik bağlantılar taranamaz."}
+        except OSError:
+            return {"ok": False, "error": "Dosya yolu okunamadı."}
+        if not p.exists() or not p.is_file():
+            return {"ok": False, "error": f"Dosya bulunamadı: {fpath}"}
+        from app.services.file_scanner import scan_file_security
+
+        rep = scan_file_security(p)
+        out = {
+            **rep,
+            "ok": True,
+            "source": "browser_download",
+            "version": __version__,
+        }
+        _append_webmail_alert(out, alert_log=alert_log)
+        return out
+
     return {"ok": False, "error": f"Bilinmeyen istek: {action or '(boş)'}"}
 
 
@@ -211,8 +255,16 @@ def run_native_host(
 
 
 def build_chromium_manifest(host_path: str, extension_ids: list[str] | None = None) -> dict:
-    """Chrome / Edge / Brave NativeMessagingHosts JSON manifesti üret."""
-    ids = [eid.strip() for eid in (extension_ids or [DEFAULT_EXTENSION_ID]) if eid and eid.strip()]
+    """Chrome / Edge / Brave NativeMessagingHosts JSON manifesti üret.
+
+    Eklenti ID'leri `^[a-p]{32}$` biçiminde olmalıdır; aksi halde
+    `allowed_origins` içine hatalı/istem dışı bir kaynak yazılmasın diye
+    hata verilir (fail-closed).
+    """
+    ids = [str(eid).strip() for eid in (extension_ids or [DEFAULT_EXTENSION_ID]) if str(eid or "").strip()]
+    invalid = [eid for eid in ids if not CHROMIUM_EXT_ID_RE.match(eid)]
+    if invalid:
+        raise ValueError(f"Geçersiz Chromium eklenti ID'si: {', '.join(invalid)}")
     if DEFAULT_EXTENSION_ID not in ids:
         ids.insert(0, DEFAULT_EXTENSION_ID)
     return {

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>ElfSec Eklenti Ayarları</title>
+  <style>
+    body {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 14px;
+    }
+    h1 { color: #34d399; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin: 0 0 10px 0; color: #e2e8f0; }
+    .card { background: #1e293b; border-radius: 10px; padding: 16px; margin-top: 16px; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; }
+    input[type="text"] {
+      background: #0f172a; color: #f8fafc; border: 1px solid #334155;
+      border-radius: 6px; padding: 7px 10px; font-size: 13px;
+    }
+    button {
+      padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer;
+      background: #10b981; color: #052e16; font-weight: 700;
+    }
+    button.danger { background: #ef4444; color: #fff; }
+    button.secondary { background: #334155; color: #f8fafc; }
+    code { background: #0f172a; padding: 4px 8px; border-radius: 5px; display: inline-block; word-break: break-all; }
+    ul { margin: 8px 0 0 16px; padding: 0; }
+    li { margin-bottom: 6px; }
+    .muted { color: #94a3b8; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>ElfSec Güvenlik Eklentisi — Ayarlar</h1>
+  <div class="muted">Tüm analiz %100 cihazınızda yerel çalışır. Hiçbir veri dış sunucuya gönderilmez.</div>
+
+  <div class="card">
+    <h2>Kalkan Modülleri</h2>
+    <label class="row"><span>Webmail Otomatik Kalkanı (Gmail, Outlook, Yahoo, Yandex...)</span><input type="checkbox" id="optWebmail" /></label>
+    <label class="row"><span>Şüpheli Bağlantı Engelleyici Modalı</span><input type="checkbox" id="optModal" /></label>
+    <label class="row"><span>Tarayıcı İndirme Kalkanı (.pdf.exe, .ps1, zararlı kaynak)</span><input type="checkbox" id="optDownloads" /></label>
+    <label class="row"><span>1x1 Takip Pikseli Sayacı</span><input type="checkbox" id="optTracker" /></label>
+  </div>
+
+  <div class="card">
+    <h2>Mağaza / Masaüstü Native Host Bağlantısı</h2>
+    <div class="muted">Bu uzantı kimliğini masaüstü <code>elfsec.exe</code> ile eşlemek için komutu kopyalayıp çalıştırın:</div>
+    <p><code id="registerCmd">elfsec.exe browser register</code></p>
+    <button id="copyCmdBtn" type="button">Komutu Kopyala</button>
+    <span id="copyMsg" class="muted" style="margin-left:8px;"></span>
+  </div>
+
+  <div class="card">
+    <h2>Güvenilen Alan Adları (İzin Listesi)</h2>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="trustedInput" placeholder="ornek-sirketim.com.tr" style="flex:1;" />
+      <button id="addTrustedBtn" type="button">Ekle</button>
+    </div>
+    <ul id="trustedList"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Özel Doğrulanmış Markalar</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="text" id="brandLabel" placeholder="Marka adı (örn: Şirketim)" style="flex:1;" />
+      <input type="text" id="brandDomain" placeholder="Resmi alan adı (sirketim.com)" style="flex:1;" />
+      <input type="text" id="brandEmail" placeholder="Resmi adres (ik@sirketim.com)" style="flex:1;" />
+      <button id="addBrandBtn" type="button">Marka Ekle</button>
+    </div>
+    <ul id="brandsList"></ul>
+  </div>
+
+  <div class="card">
+    <h2>İstatistikler ve Geçmiş</h2>
+    <div id="statsSummary" class="muted" style="margin-bottom:10px;"></div>
+    <button id="exportBtn" type="button" class="secondary">Geçmişi JSON İndir</button>
+    <button id="clearBtn" type="button" class="danger" style="margin-left:8px;">Geçmişi Temizle</button>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

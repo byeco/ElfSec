@@ -34,18 +34,20 @@ jobs:
           elfsec.py
       - run: .\dist\elfsec.exe health
       - run: .\dist\elfsec.exe kontrol --fail-only --fail-on HIGH
-      - working-directory: .
-        shell: pwsh
-        run: Compress-Archive -Path extension\* -DestinationPath elfsec-browser-extension.zip -Force
+      - run: python scripts/pack_extensions.py --out ..
       - uses: actions/upload-artifact@v4
         with:
           name: elfsec-windows
           path: |
             backend/dist/elfsec.exe
             elfsec-browser-extension.zip
+            elfsec-extension-chrome-edge-store.zip
+            elfsec-extension-firefox-amo.zip
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             backend/dist/elfsec.exe
             elfsec-browser-extension.zip
+            elfsec-extension-chrome-edge-store.zip
+            elfsec-extension-firefox-amo.zip
           generate_release_notes: true

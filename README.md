@@ -1,8 +1,8 @@
-# ElfSec — Windows Güvenlik Eklentisi & E-posta Analiz Aracı (v1.5.0)
+# ElfSec — Windows Güvenlik Eklentisi & E-posta Analiz Aracı (v1.6.0)
 
 [🇹🇷 Türkçe](#-türkçe) | [🇬🇧 English](#-english)
 
-> **%100 Yerel · API Anahtarsız · Tek `elfsec.exe` · 204+ Test · 79/79 `kontrol` PASS · 8 Sabit Bağımlılık**
+> **%100 Yerel · API Anahtarsız · Tek `elfsec.exe` · 205+ Test · 80/80 `kontrol` PASS · 8 Sabit Bağımlılık**
 >
 > Tarayıcıdaki webmail (**Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton Mail**), masaüstü mail uygulamaları (**Outlook Classic/New, Windows Mail, `.eml`/`.msg`, IMAP/OAuth2**), **Windows dosya/İndirilenler** ve **pano (ClickFix)** tehditlerini cihazınızdan dışarı tek byte çıkarmadan tespit eden yerel **Windows Güvenlik Eklentisi**.
 
@@ -14,7 +14,7 @@
 
 | Katman | Ne Yapar? | Bileşenler |
 |---|---|---|
-| **1. Tarayıcı Webmail Eklentisi (`extension/`)** | **Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton Mail** içinde açılan postayı okur; gövde üstüne canlı risk şeridi (`LOW`–`CRITICAL`) ekler, şüpheli linkleri işaretler ve tıklamada onay ister. Native Host bağlı değilken bile yerleşik JS yedek motoruyla çalışır. | Manifest V3 + `content.js` + `fallback_analyzer.js` + `elfsec.exe native-host` |
+| **1. Tarayıcı Webmail Eklentisi (`extension/`)** | **Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton Mail** içinde açılan postayı okur; canlı risk şeridi, marka doğrulama rozeti, 1x1 takip pikseli sayacı, link hover hedef önizleme, modern şüpheli link engel modalı ve tarayıcı **İndirme Kalkanı** sunar. | Manifest V3 + `_locales` + `options.html` + `elfsec.exe native-host` |
 | **2. Masaüstü Mail & IMAP** | **Outlook Classic** (`INetCache\Content.Outlook\*`), **Yeni Outlook** ve **Windows Mail** ek önbelleklerini otomatik izler; `.eml`/`.msg` dosyalarına sağ-tık tarama ekler. İsteğe bağlı olarak IMAP/OAuth2 ile gelen kutusunu periyodik tarar (`triage`, `guard`). | `file_watcher` + `imap_client` + `oauth` |
 | **3. Windows Dosya & İndirilenler** | İndirilenler klasörünü ve Gezgin sağ-tık seçili dosya/klasörleri tarar: çift uzantı (`fatura.pdf.exe`), Unicode RLO gizleme, `.pdf`/`.docx`/`.jpg` içine gizlenmiş `MZ` (PE/EXE) dosyası, NTFS Mark-of-the-Web (`Zone.Identifier`), LOLBin script/`.lnk` analizi ve `.quarantined` karantina kasası. | `file_scanner` + `scan-path` + `quarantine-file` |
 | **4. Pano (Clipboard) / ClickFix** | Kopyalanan `powershell -w hidden -enc`, `mshta http://...`, `cmd /c curl ...`, `certutil -urlcache` gibi ClickFix tuzaklarını ve phishing URL'lerini yakalayıp Windows Toast ile uyarır. | `clipboard_guard` + `agent --tray` |
@@ -54,7 +54,7 @@
 3. **Paketlenmemiş öğe yükle (Load unpacked)** düğmesine tıklayın ve `C:\Program Files\ElfSec\extension` (veya repodaki `extension\`) klasörünü seçin.
 4. Eklenti, sabit Public Key sayesinde otomatik olarak `jkmbfppdffpiodlmikbdfdihdkejcfjj` kimliğini alır ve `com.elfsec.guard` Native Host'una bağlanır. Gmail veya Outlook Web'de bir e-posta açtığınızda üstte canlı güvenlik şeridi görünür.
 
-*(Native Host kaydını tek başına yönetmek için: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`)*
+*(Native Host kaydını tek başına yönetmek için: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`. Mağaza paketlerini üretmek için: `python backend/scripts/pack_extensions.py` → `elfsec-extension-chrome-edge-store.zip`, `elfsec-extension-firefox-amo.zip`)*
 
 ---
 
@@ -146,7 +146,7 @@ print(report["risk_level"], report["risk_score"], report["reasons"])
 
 | Layer | What It Does | Components |
 |---|---|---|
-| **1. Browser Webmail Extension (`extension/`)** | Inspects opened emails directly inside **Gmail, Outlook Web, Yahoo Mail, Yandex Mail, iCloud Mail, and Proton Mail**; injects a live risk banner (`LOW`–`CRITICAL`) above the message, highlights suspicious links, and guards clicks. Falls back to an embedded offline JS engine when the Native Host is absent. | Manifest V3 + `content.js` + `fallback_analyzer.js` + `elfsec.exe native-host` |
+| **1. Browser Webmail Extension (`extension/`)** | Inspects opened emails in **Gmail, Outlook Web, Yahoo, Yandex, iCloud, and Proton Mail**; adds a live risk banner, verified-brand badge, 1x1 tracking-pixel counter, link-hover target preview, blocking modal, and browser **Downloads Guard**. | Manifest V3 + `_locales` + `options.html` + `elfsec.exe native-host` |
 | **2. Desktop Mail Apps & IMAP** | Automatically monitors **Outlook Classic** (`INetCache\Content.Outlook\*`), **New Outlook**, and **Windows Mail** attachment cache folders; adds Explorer right-click analysis for `.eml` and `.msg` files; supports periodic IMAP/OAuth2 scanning (`triage`, `guard`). | `file_watcher` + `imap_client` + `oauth` |
 | **3. Windows File & Downloads Protection** | Scans Downloads and Explorer right-clicked files/folders for double extensions (`invoice.pdf.exe`), Unicode RLO filename spoofing, PE `MZ` executables disguised as `.pdf`/`.docx`/`.jpg`, NTFS Mark-of-the-Web (`Zone.Identifier`), LOLBin `.ps1`/`.bat`/`.vbs`/`.hta`/`.lnk` scripts, and isolates threats as `.quarantined`. | `file_scanner` + `scan-path` + `quarantine-file` |
 | **4. Clipboard / ClickFix Guard** | Detects pasted ClickFix lures (`powershell -w hidden -enc`, `mshta http://...`, `cmd /c curl ...`, `certutil -urlcache`) and phishing URLs, alerting immediately via Windows Toast notifications. | `clipboard_guard` + `agent --tray` |
@@ -186,7 +186,7 @@ print(report["risk_level"], report["risk_score"], report["reasons"])
 3. Click **Load unpacked** and select `C:\Program Files\ElfSec\extension` (or `extension/` in this repo).
 4. The manifest's pinned public key deterministically sets the extension ID to `jkmbfppdffpiodlmikbdfdihdkejcfjj`, connecting automatically to `com.elfsec.guard`. Opening any email in Gmail or Outlook Web immediately displays the ElfSec risk banner.
 
-*(Manage browser Native Host registration manually via: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`)*
+*(Manage browser Native Host registration manually via: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`. Build store zip packages via: `python backend/scripts/pack_extensions.py` → `elfsec-extension-chrome-edge-store.zip`, `elfsec-extension-firefox-amo.zip`)*
 
 ---
 

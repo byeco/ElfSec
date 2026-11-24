@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## v1.6.0 — Mağaza Hazır Tarayıcı Uzantısı (Chrome / Edge / Firefox) + İndirme & Link Kalkanı
+
+- **Gelişmiş Webmail Kalkanı (`extension/content.js`, `banner.css`):**
+  - Link üstüne gelince gerçek hedef alan adını ve hedef-metin uyuşmazlıklarını gösteren güvenlik önizleme balonu (`#elfsec-link-tooltip`).
+  - `window.confirm` yerine şık, güvenli **"Geri Dön (Güvenli)"** engel modalı (`#elfsec-link-modal`).
+  - E-posta içi **1x1 takip pikseli sayacı** (`👁 Takip Pikseli: N`).
+- **Tarayıcı İndirme Kalkanı (`extension/background.js`, `fallback_analyzer.js`, `native_host.py`):**
+  - Tarayıcıdan dosya indirilirken (`.pdf.exe`, `.ps1`, `.lnk`, RLO, şüpheli URL) anında tarama ve masaüstü bildirimi; Native Host bağlıyken indirme bitiminde derin `scan_file` analizi (PE `MZ` / MotW / LOLBin).
+- **Mağaza Yayını & Ayarlar (`extension/` + `backend/scripts/pack_extensions.py`):**
+  - `_locales/tr` + `_locales/en` dil desteği, canlı istatistikli Popup, **Ayarlar (`options.html`)** sayfası (kalkan anahtarları, güvenilen alan adları, özel markalar, tek tıkla Store ID `elfsec.exe browser register --extension-id ...` komutu, JSON geçmiş dışa aktarımı).
+  - [PRIVACY.md](extension/PRIVACY.md) ve [STORE_LISTING.md](extension/STORE_LISTING.md) mağaza inceleme dokümanları.
+  - `pack_extensions.py`: `elfsec-extension-chrome-edge-store.zip`, `elfsec-extension-firefox-amo.zip` ve `elfsec-browser-extension.zip` paketlerini üretir; GitHub Release'e ekler.
+- **Güvenlik sertleştirmeleri (v1.6.0 denetimi):**
+  - **SSRF koruması (`app/urlintel.py`):** Kısaltılmış URL genişletme artık yalnızca herkese açık http(s) hedeflerine gider; localhost, loopback, özel ağ, link-local (bulut metadata `169.254.169.254`), multicast ve rezerve adresler ile kimlik bilgisi içeren URL'ler engellenir. Yönlendirme zincirindeki her adım ayrıca doğrulanır.
+  - **Native Host confused-deputy sertleştirmesi (`app/native_host.py`):** `scan_file` UNC/ağ yollarını, aygıt yollarını (`\\?\`, `\\.\`), göreli yolları ve sembolik bağlantıları reddeder; yol uzunluğu sınırlandırılır. `allowed_origins` için eklenti ID'si `^[a-p]{32}$` olarak doğrulanır (fail-closed). Alarm günlüğü 2 MB'ta döndürülür.
+  - **Eklenti mesaj/ayar sertleştirmesi (`extension/background.js`):** `onMessage` yalnızca kendi eklenti kimliğinden gelen mesajları kabul eder; ayarlar beyaz listeyle temizlenir (prototype pollution ve sınırsız dizi şişmesi engellenir); `SCAN_TEXT` girdisi 10.000 karakterle sınırlanır.
+  - **Link uyuşmazlığı tespiti (`extension/content.js`):** Yalnızca `https://...` metni değil, çıplak alan adı metni (`paypal.com`) ile gerçek hedef karşılaştırılır; `www.` normalizasyonu ve dosya uzantısı yanlış pozitif filtresi eklendi.
+  - **İzin daraltma (`extension/manifest.json`):** Kullanılmayan `activeTab` izni kaldırıldı; iCloud içerik betiği `www.icloud.com/*` yerine yalnızca `www.icloud.com/mail*` kapsamına alındı.
+  - **Paketleyici sertleştirmesi (`backend/scripts/pack_extensions.py`):** `.pem`/`.key`/`.env` gibi sır dosyaları görülürse paketleme durur; `.map`, gizli dosyalar, `node_modules`, `__pycache__` ve geliştirici notları pakete girmez; ZIP'ler atomik olarak (önce `.tmp`, sonra replace) yazılır ve MV3 manifest doğrulanır.
+  - **Gizlilik dokümanı:** Yerel `guard_alerts.jsonl` davranışı ve varsayılan kapalı URL genişletme politikası PRIVACY.md'ye eklendi.
+- **KONTROL:** `WIN-11` mağaza paketi bütünlük denetimi.
+
 ## v1.5.0 — Doğrulanmış Resmi Marka Göndericileri & Anti-Taklit Motoru
 
 - **Yeni `app/verified_senders.py`:** Apple (`no_reply@email.apple.com`, `appleid@id.apple.com`, `email.apple.com`, `id.apple.com`, `insideicloud.icloud.com` vb.), Google, Microsoft, PayPal, Amazon, Netflix, Meta/Instagram, GitHub, Steam, Discord, e-Devlet, Garanti BBVA, Akbank, Ziraat, İş Bankası, Yapı Kredi, PTT, Trendyol, Hepsiburada, Turkcell, Türk Telekom ve Vodafone için resmi alan adı ve bilinen ulaşılabilir adres kayıt defteri (`verified_senders.json` ile genişletilebilir).
