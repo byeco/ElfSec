@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <title>ElfSec Güvenlik Eklentisi</title>
+  <style>
+    body {
+      width: 340px;
+      margin: 0;
+      padding: 14px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    h1 { font-size: 15px; margin: 0 0 8px 0; color: #34d399; }
+    .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1e293b; }
+    .pill.ok { background: #065f46; color: #d1fae5; }
+    .pill.warn { background: #78350f; color: #fef3c7; }
+    .card { background: #1e293b; border-radius: 8px; padding: 10px; margin-top: 10px; }
+    textarea {
+      width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #334155;
+      background: #0f172a; color: #f8fafc; padding: 8px; font-size: 12px; resize: vertical;
+    }
+    button {
+      margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px;
+      background: #10b981; color: #052e16; font-weight: 700; cursor: pointer;
+    }
+    ul { margin: 6px 0 0 16px; padding: 0; }
+    li { margin-bottom: 4px; font-size: 12px; }
+    .muted { color: #94a3b8; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <h1>ElfSec Güvenlik Eklentisi</h1>
+    <span id="nativeStatus" class="pill warn">Kontrol ediliyor</span>
+  </div>
+
+  <div class="card row">
+    <span>Webmail Otomatik Koruması</span>
+    <label>
+      <input type="checkbox" id="enabledToggle" checked />
+      Aktif
+    </label>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:6px;">Hızlı Link / ClickFix Taraması</div>
+    <textarea id="quickInput" rows="2" placeholder="Şüpheli link veya PowerShell/CMD komutu yapıştırın..."></textarea>
+    <button id="scanBtn" type="button">Tara</button>
+    <div id="quickResult" class="muted" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:600;">Son Webmail Alarmları</div>
+    <ul id="alertsList"><li class="muted">Henüz alarm yok.</li></ul>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## v1.4.0 — Tarayıcı Webmail + Masaüstü Mail Uygulamaları Desteği
+
+- **Tarayıcı Eklentisi (`extension/`, Manifest V3)**:
+  - **Gmail**, **Outlook Web** (`outlook.live.com`, `outlook.office.com`, `outlook.office365.com`), **Yahoo Mail**, **Yandex Mail**, **iCloud Mail** ve **Proton Mail** için gerçek zamanlı DOM okuma, risk banner'ı (`#elfsec-mail-banner`) ve şüpheli link tıklama uyarısı.
+  - Seçili metin / bağlantı sağ-tık taraması ve popup hızlı tarama arayüzü.
+  - Native Host bağlı değilken bile çalışan çevrimdışı `fallback_analyzer.js` motoru.
+- **Native Messaging Host (`app/native_host.py`, `elfsec native-host`)**:
+  - Chrome, Edge, Brave ve Firefox ile 4-bayt little-endian stdio JSON çerçeveleme üzerinden yerel analiz.
+  - `elfsec browser register|unregister|status` + `elfsec plugin install` otomatik tarayıcı Native Host kaydı.
+- **Masaüstü Mail Uygulamaları**:
+  - Windows Servisi (`ServiceRunner`) artık İndirilenlere ek olarak **Outlook Classic** (`Content.Outlook\*`), **Outlook (New)** ve **Windows Mail** ek önbellek klasörlerini de otomatik izler (`default_mail_app_dirs`).
+  - Gezgin sağ-tık tarama menüsüne `.eml` ve `.msg` dosya türleri eklendi.
+- **KONTROL**: `WIN-09` (Native Messaging köprüsü) ve `WIN-10` (MV3 eklentisi + deterministik ID).
+
+## v1.3.0 — Windows Güvenlik Eklentisi
+
+- **Gerçek Windows Güvenlik Eklentisi mimarisi** (ek pip bağımlılığı yok, tek `elfsec.exe`):
+  - **Windows Servisi (`ElfSecGuard`)**: `app/win_service.py` — native Win32 SCM (`ctypes.windll.advapi32`) ile SYSTEM/Yönetici yetkisinde arka planda çalışır; tüm kullanıcıların İndirilenler klasörünü ve yapılandırılmışsa IMAP posta kutusunu tarar, `ProgramData\ElfSec\service_status.json` ve `guard_alerts.jsonl` üretir.
+  - **Kullanıcı Oturumu Tepsi & Pano Ajanı**: `app/tray.py` (saf Win32 `Shell_NotifyIconW` sistem tepsisi + sağ-tık menüsü) ve `app/win_plugin.py` (`AlertBridge` servis alarmlarını anında Windows Toast olarak gösterir).
+  - **Çevrimdışı Dosya Güvenlik Tarayıcısı (`app/services/file_scanner.py`)**: çift uzantı (`fatura.pdf.exe`), Unicode RLO sahteciliği, PE `MZ` sihirli bayt uyumsuzluğu (PDF içine gizlenmiş EXE), NTFS `Zone.Identifier` (Mark-of-the-Web), LOLBin script/`.lnk` analizi, `.eml`/`.html` ayrıştırma ve `.quarantined` kasasına güvenli taşıma (`scan-path`, `quarantine-file`).
+  - **İndirilenler & Pano/ClickFix Koruması (`app/watchers/`)**: `.crdownload`/`.part` bitince otomatik tarama (`watch`), panoya kopyalanan ClickFix PowerShell/MSHTA/CMD tuzaklarını ve phishing URL'lerini yakalama (`clipboard`).
+  - **Windows Gezgini Sağ-Tık & Tek-Komut Kurulum**: `elfsec plugin install|uninstall|status`, `install_windows_plugin.ps1`, `uninstall_windows_plugin.ps1`, güncellenen `installer/elfsec.iss` (`PrivilegesRequired=admin`).
+  - **Makine Düzeyi DPAPI (`ENCM(...)`)**: `secret_vault.py` + `settings_store.py` (`ProgramData\ElfSec\elfsec.env`).
+- **KONTROL**: yeni `WIN` kategorisi (`WIN-01`..`WIN-08`).
+
 ## v1.2.1 — CI/Linux düzeltmesi
 
 - Hata: `rules_path()` Linux'ta `APPDATA` yamasını yok sayıp gerçek

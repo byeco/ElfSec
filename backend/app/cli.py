@@ -808,9 +808,9 @@ def cmd_guard(args: argparse.Namespace) -> int:
 
 
 def parse_protocol_uri(raw: str) -> tuple[str, dict] | None:
-    """Toast butonundan gelen `elfsec:aksiyon?uid=..` URI'sini çöz.
+    """Toast butonundan gelen `elfsec:aksiyon?...` URI'sini çöz.
 
-    Dönüş: (aksiyon, {uid}) ya da None (normal CLI argümanı).
+    Dönüş: (aksiyon, {uid|path}) ya da None (normal CLI argümanı).
     """
     s = (raw or "").strip().strip("\"'")
     if not s.lower().startswith("elfsec:"):
@@ -821,6 +821,11 @@ def parse_protocol_uri(raw: str) -> tuple[str, dict] | None:
         u = urllib.parse.urlparse(s)
         action = (u.path or u.netloc or "").strip("/").lower()
         qs = urllib.parse.parse_qs(u.query)
+        if action == "quarantine-file":
+            fpath = urllib.parse.unquote((qs.get("path") or [""])[0])
+            if not fpath:
+                return None
+            return action, {"path": fpath}
         uid = (qs.get("uid") or [""])[0]
         if action not in ("quarantine", "delete") or not uid:
             return None
@@ -914,6 +919,391 @@ def cmd_quarantine(args: argparse.Namespace) -> int:
         except Exception as e:
             print(f"UYARI: karantina günlüğü yazılamadı: {e}", file=sys.stderr)
     return 0
+
+
+# ---------- Windows Güvenlik Eklentisi komutları (v1.3.0) ----------
+
+def _maybe_pause(args: argparse.Namespace) -> None:
+    if getattr(args, "pause", False):
+        try:
+            input("\nKapatmak için Enter'a basın...")
+        except (EOFError, KeyboardInterrupt):
+            pass
+
+
+def cmd_scan_path(args: argparse.Namespace) -> int:
+    """Dosya veya klasörü tüm Windows güvenlik katmanlarıyla tarar (sağ-tık / CLI)."""
+    from app.services.file_scanner import quarantine_file, scan_path
+
+    target = getattr(args, "path", "")
+    if not target or not Path(target).exists():
+        print(f"HATA: hedef bulunamadı: {target}", file=sys.stderr)
+        _maybe_pause(args)
+        return 2
+    reports = scan_path(
+        target,
+        recursive=not getattr(args, "no_recursive", False),
+        max_files=max(1, min(500, int(getattr(args, "max_files", 200) or 200))),
+        expand_urls=bool(getattr(args, "expand_urls", False)),
+    )
+    if not reports:
+        print("Taranacak uygun dosya bulunamadı.")
+        _maybe_pause(args)
+        return 0
+
+    q_dir = getattr(args, "quarantine_dir", "") or None
+    if getattr(args, "quarantine", False):
+        for r in reports:
+            if fail_on_exceeded(r["risk_level"], getattr(args, "fail_on", "HIGH")):
+                try:
+                    rec = quarantine_file(r["file"], quarantine_dir=q_dir, report=r)
+                    r["quarantined_to"] = rec["quarantine_path"]
+                except Exception as e:
+                    r["quarantine_error"] = str(e)
+
+    worst = max([r["risk_level"] for r in reports], default="LOW", key=lambda l: LEVEL_ORDER.get(l, 0))
+    if getattr(args, "notify", False):
+        from app.notify import notify_file_alarm, toast
+
+        risky = [r for r in reports if fail_on_exceeded(r["risk_level"], "MEDIUM")]
+        if risky:
+            notify_file_alarm(risky[0])
+        else:
+            toast("ElfSec Dosya Taraması", f"{len(reports)} dosya temiz ({Path(target).name}).")
+
+    if getattr(args, "json", False) or getattr(args, "out", ""):
+        emit(reports[0] if len(reports) == 1 else reports, args)
+    elif not getattr(args, "quiet", False):
+        if len(reports) == 1:
+            r = reports[0]
+            print(f"=== {r['file']} ===")
+            _print_report(r, 0, quiet=False)
+            if r.get("sha256"):
+                print(f"SHA-256: {r['sha256']}")
+            if r.get("quarantined_to"):
+                print(f"KARANTİNA: {r['quarantined_to']}")
+        else:
+            from app.table import render, sev, use_table
+
+            if use_table(args):
+                print(render(
+                    ["Skor", "Seviye", "Dosya", "Özet"],
+                    [[str(r["risk_score"]), sev(r["risk_level"]), r["filename"], r["summary"]]
+                     for r in reports],
+                    title=f"DOSYA TARAMASI ({len(reports)} dosya)",
+                    aligns=["r", "l", "l", "l"],
+                ))
+            else:
+                for r in reports:
+                    icon = LEVEL_ICON.get(r["risk_level"], "[?]")
+                    print(f"{icon} {r['risk_score']:3d} [{r['risk_level']:8s}] {r['file']} — {r['summary']}")
+    _maybe_pause(args)
+    return 1 if fail_on_exceeded(worst, getattr(args, "fail_on", "HIGH")) else 0
+
+
+def cmd_quarantine_file(args: argparse.Namespace) -> int:
+    """Şüpheli tek dosyayı .quarantined kasasına taşır."""
+    from app.notify import toast
+    from app.services.file_scanner import quarantine_file
+
+    target = getattr(args, "path", "")
+    if not target or not Path(target).exists():
+        print(f"HATA: dosya bulunamadı: {target}", file=sys.stderr)
+        return 2
+    try:
+        rec = quarantine_file(target, quarantine_dir=getattr(args, "quarantine_dir", "") or None)
+    except Exception as e:
+        print(f"HATA: karantina başarısız: {e}", file=sys.stderr)
+        return 2
+    print(f"OK: karantinaya alındı -> {rec['quarantine_path']}")
+    if getattr(args, "notify", False):
+        toast("ElfSec Karantina", f"Dosya karantinaya alındı: {Path(target).name}")
+    return 0
+
+
+def cmd_watch(args: argparse.Namespace) -> int:
+    """İndirilenler veya özel klasörleri güvenlik tehditlerine karşı izler."""
+    from app.settings_store import default_user_config_path
+    from app.watchers.file_watcher import (
+        FileWatchState,
+        default_watch_dirs,
+        run_file_watcher,
+        scan_watch_dirs_once,
+    )
+
+    dirs = [Path(d) for d in (getattr(args, "dir", None) or []) if d]
+    if not dirs:
+        dirs = default_watch_dirs(all_users=False)
+    if not dirs:
+        print("HATA: izlenecek klasör bulunamadı (--dir ile belirtin).", file=sys.stderr)
+        return 2
+    try:
+        iv = max(1, int(getattr(args, "interval", 10) or 10))
+    except Exception:
+        print("HATA: --interval sayı olmalı.", file=sys.stderr)
+        return 2
+
+    state_path = getattr(args, "state", "") or str(default_user_config_path().parent / ".watch_seen.json")
+    state = FileWatchState(state_path)
+    qdir = Path(args.quarantine_dir) if getattr(args, "quarantine_dir", "") else None
+    notify_on = getattr(args, "notify", "on") == "on"
+
+    if getattr(args, "once", False):
+        scanned, alerts = scan_watch_dirs_once(
+            dirs, state,
+            alert_on=getattr(args, "alert_on", "HIGH"),
+            action=getattr(args, "action", "notify-only"),
+            quarantine_dir=qdir,
+            alert_log=getattr(args, "alert_log", ""),
+            notify=notify_on,
+        )
+        if getattr(args, "json", False) or getattr(args, "out", ""):
+            emit({"scanned": len(scanned), "alerts": alerts}, args)
+        elif not getattr(args, "quiet", False):
+            print(f"İzleme turu tamam: {len(scanned)} dosya tarandı, {len(alerts)} alarm.")
+            for a in alerts:
+                print(f"  [!] {a['risk_score']}/100 [{a['risk_level']}] {a['file']}")
+        worst = max([r["risk_level"] for r in scanned], default="LOW", key=lambda l: LEVEL_ORDER.get(l, 0))
+        return 1 if scanned and fail_on_exceeded(worst, getattr(args, "fail_on", "HIGH")) else 0
+
+    print(f"ElfSec klasör izleme başladı ({len(dirs)} klasör, aralık={iv}sn). Durdurmak için Ctrl+C", flush=True)
+    try:
+        run_file_watcher(
+            dirs, state, interval_sec=iv,
+            alert_on=getattr(args, "alert_on", "HIGH"),
+            action=getattr(args, "action", "notify-only"),
+            quarantine_dir=qdir,
+            alert_log=getattr(args, "alert_log", ""),
+            notify=notify_on,
+        )
+    except KeyboardInterrupt:
+        print("\nİzleme durduruldu.", flush=True)
+    return 0
+
+
+def cmd_clipboard(args: argparse.Namespace) -> int:
+    """Pano (Clipboard) ClickFix / phishing link kontrolü (tek sefer veya sürekli)."""
+    import threading
+    from app.notify import notify_clipboard_alarm
+    from app.watchers.clipboard_guard import ClipboardGuard, analyze_clipboard_text
+
+    notify_on = getattr(args, "notify", "on") == "on"
+    text_arg = getattr(args, "text", None)
+
+    if getattr(args, "once", False) or text_arg is not None:
+        if text_arg is not None:
+            rep = analyze_clipboard_text(text_arg)
+        else:
+            guard = ClipboardGuard(enabled=True)
+            rep = guard.check_once(force=True) or analyze_clipboard_text("")
+        if getattr(args, "json", False) or getattr(args, "out", ""):
+            emit(rep, args)
+        elif not getattr(args, "quiet", False):
+            _print_report(rep, 0, quiet=False)
+        if notify_on and fail_on_exceeded(rep["risk_level"], getattr(args, "alert_on", "MEDIUM")):
+            notify_clipboard_alarm(rep)
+        return 1 if fail_on_exceeded(rep["risk_level"], getattr(args, "fail_on", "MEDIUM")) else 0
+
+    guard = ClipboardGuard(enabled=True)
+    stop_ev = threading.Event()
+    print("ElfSec pano koruması başladı (ClickFix + phishing URL). Durdurmak için Ctrl+C", flush=True)
+
+    def _on_alert(rep: dict) -> None:
+        icon = LEVEL_ICON.get(rep["risk_level"], "[?]")
+        print(f"{icon} PANO ALARMI {rep['risk_score']}/100 [{rep['risk_level']}]: {rep['reasons'][0]}", flush=True)
+        if notify_on:
+            notify_clipboard_alarm(rep)
+
+    try:
+        guard.run_loop(stop_ev, interval_sec=float(getattr(args, "interval", 1.5) or 1.5),
+                       alert_on=getattr(args, "alert_on", "MEDIUM"), on_alert=_on_alert)
+    except KeyboardInterrupt:
+        stop_ev.set()
+        print("\nPano koruması durduruldu.", flush=True)
+    return 0
+
+
+def cmd_service(args: argparse.Namespace) -> int:
+    """Windows Arka Plan Güvenlik Servisi (install/uninstall/start/stop/status/run)."""
+    from app.win_service import (
+        ServiceRunner,
+        install_service,
+        run_as_windows_service,
+        service_status,
+        start_service,
+        stop_service,
+        uninstall_service,
+    )
+
+    op = args.service_action
+    if op == "status":
+        st = service_status()
+        if getattr(args, "json", False):
+            emit(st, args)
+        else:
+            print(f"Servis: {st['service_name']} | Durum: {st['state']} | "
+                  f"IMAP: {st['imap_status']} | Alarmlar: {st['alerts_total']}")
+            if st.get("heartbeat"):
+                print(f"Son kalp atışı: {st['heartbeat']}")
+        return 0
+    if op == "install":
+        ok, msg = install_service(
+            exe_path=getattr(args, "exe", ""),
+            config_path=getattr(args, "config", ""),
+            watch_interval=getattr(args, "watch_interval", 10),
+            mail_interval=getattr(args, "mail_interval", 10),
+            action=getattr(args, "action", "notify-only"),
+        )
+        print(msg if ok else f"HATA: {msg}", file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 2
+    if op == "uninstall":
+        ok, msg = uninstall_service()
+        print(msg if ok else f"HATA: {msg}", file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 2
+    if op == "start":
+        ok, msg = start_service()
+        print(msg if ok else f"HATA: {msg}", file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 2
+    if op == "stop":
+        ok, msg = stop_service()
+        print(msg if ok else f"HATA: {msg}", file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 2
+    if op == "run":
+        dirs = [Path(d) for d in (getattr(args, "watch_dir", None) or []) if d] or None
+        runner = ServiceRunner(
+            watch_dirs=dirs,
+            watch_interval_sec=getattr(args, "watch_interval", 10),
+            mail_interval_min=getattr(args, "mail_interval", 10),
+            action=getattr(args, "action", "notify-only"),
+            enable_mail=not getattr(args, "no_mail", False),
+        )
+        if getattr(args, "once", False):
+            snap = runner.run_once()
+            if getattr(args, "json", False):
+                emit(snap, args)
+            else:
+                print(f"Servis turu: dosya={snap['files_scanned']} alarm={snap['file_alerts']}+{snap['mail_alerts']}")
+            return 0
+        if getattr(args, "foreground", False):
+            try:
+                runner.run_forever()
+            except KeyboardInterrupt:
+                pass
+            return 0
+        return run_as_windows_service(runner)
+    return 2
+
+
+def cmd_agent(args: argparse.Namespace) -> int:
+    """Kullanıcı oturumu Sistem Tepsisi + Pano Koruması + Servis Alarm Köprüsü."""
+    from app.win_plugin import run_agent
+
+    tray = bool(getattr(args, "tray", False) or getattr(args, "background", False))
+    return run_agent(
+        tray=tray,
+        clipboard=(getattr(args, "clipboard", "on") == "on"),
+        alert_log=getattr(args, "alert_log", ""),
+        alert_on=getattr(args, "alert_on", "HIGH"),
+        notify=(getattr(args, "notify", "on") == "on"),
+        once=bool(getattr(args, "once", False)),
+    )
+
+
+def cmd_plugin(args: argparse.Namespace) -> int:
+    """Windows Güvenlik Eklentisi kurulum/kaldırma/durum yönetimi."""
+    from app.win_plugin import install_plugin, plugin_status, uninstall_plugin
+
+    op = args.plugin_action
+    if op == "status":
+        st = plugin_status()
+        if getattr(args, "json", False):
+            emit(st, args)
+        else:
+            from app.table import panel, sev, use_table
+
+            svc = st.get("service", {})
+            if use_table(args):
+                print(panel("ELFSEC WINDOWS GÜVENLİK EKLENTİSİ", [
+                    ("Yönetici", "EVET" if st["is_admin"] else "HAYIR"),
+                    ("Servis", f"{svc.get('state', '?')} ({svc.get('service_name', '')})"),
+                    ("Sağ-tık (Dosya)", sev("HAZIR" if st["context_menu_files"] else "EKSIK")),
+                    ("Sağ-tık (Klasör)", sev("HAZIR" if st["context_menu_dirs"] else "EKSIK")),
+                    ("Protokol (elfsec://)", sev("HAZIR" if st["protocol_registered"] else "EKSIK")),
+                    ("Tepsi Ajan Otostart", sev("HAZIR" if st["agent_autostart"] else "EKSIK")),
+                    ("Alarm Sayısı", str(st["alerts_count"])),
+                ]))
+            else:
+                print(f"SERVIS={svc.get('state')} | SAG_TIK={st['context_menu_files']} | "
+                      f"PROTOKOL={st['protocol_registered']} | AJAN={st['agent_autostart']}")
+        return 0
+    if op == "install":
+        res = install_plugin(
+            exe_path=getattr(args, "exe", ""),
+            user_only=bool(getattr(args, "user_only", False)),
+            with_service=not bool(getattr(args, "no_service", False)),
+            start_now=not bool(getattr(args, "no_start", False)),
+            extension_ids=getattr(args, "extension_id", None) or None,
+        )
+        if getattr(args, "json", False):
+            emit(res, args)
+        elif res.get("ok"):
+            print(f"OK: Windows Güvenlik Eklentisi kuruldu ({res['scope']}, {res['registry_entries']} kayıt).")
+            print(f"Servis: {res['service_message']}")
+        else:
+            print(f"HATA: {res.get('error') or res.get('service_message')}", file=sys.stderr)
+        return 0 if res.get("ok") else 2
+    if op == "uninstall":
+        res = uninstall_plugin(user_only=bool(getattr(args, "user_only", False)))
+        if getattr(args, "json", False):
+            emit(res, args)
+        elif res.get("ok"):
+            print("OK: Windows Güvenlik Eklentisi kaldırıldı.")
+        else:
+            print(f"HATA: {res.get('error') or res.get('service_message')}", file=sys.stderr)
+        return 0 if res.get("ok") else 2
+    return 2
+
+
+def cmd_native_host(args: argparse.Namespace) -> int:
+    """Tarayıcı Native Messaging stdio döngüsünü çalıştır (Chrome/Edge/Brave/Firefox)."""
+    from app.native_host import run_native_host
+
+    return run_native_host(alert_log=getattr(args, "alert_log", ""))
+
+
+def cmd_browser(args: argparse.Namespace) -> int:
+    """Tarayıcı webmail eklentisi Native Host kayıt ve durum yönetimi."""
+    from app.win_plugin import browser_status, register_browser_hosts, unregister_browser_hosts
+
+    op = args.browser_action
+    if op == "status":
+        st = browser_status()
+        if getattr(args, "json", False):
+            emit(st, args)
+        else:
+            print(f"Chrome={st['chrome']} | Edge={st['edge']} | Brave={st['brave']} | Firefox={st['firefox']}")
+        return 0
+    if op == "register":
+        res = register_browser_hosts(
+            exe_path=getattr(args, "exe", ""),
+            user_only=bool(getattr(args, "user_only", False)),
+            extension_ids=getattr(args, "extension_id", None) or None,
+        )
+        if getattr(args, "json", False):
+            emit(res, args)
+        elif res.get("ok"):
+            print(f"OK: Tarayıcı Native Host kaydedildi ({res['scope']}): {res['chromium_manifest']}")
+        else:
+            print(f"HATA: {res.get('error')}", file=sys.stderr)
+        return 0 if res.get("ok") else 2
+    if op == "unregister":
+        res = unregister_browser_hosts(user_only=bool(getattr(args, "user_only", False)))
+        if getattr(args, "json", False):
+            emit(res, args)
+        else:
+            print("OK: Tarayıcı Native Host kayıtları kaldırıldı.")
+        return 0 if res.get("ok") else 2
+    return 2
 
 
 # ---------- parser ----------
@@ -1414,7 +1804,7 @@ def build_parser() -> argparse.ArgumentParser:
     csu.set_defaults(func=cmd_config)
 
     k = sub.add_parser("kontrol", help="Sürümlü güvenlik denetimi + sızma testleri")
-    k.add_argument("--kategori", default="", help="Virgüllü filtre: SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE")
+    k.add_argument("--kategori", default="", help="Virgüllü filtre: SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE,WIN")
     k.add_argument("--fail-only", action="store_true", help="Sadece FAIL/WARN bas")
     _add_common(k, with_fail=True)
     k.set_defaults(func=cmd_kontrol)
@@ -1458,6 +1848,127 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cors-origins", default="",
                    help="Virgüllü origin allowlist, örn: https://benimsitem.com")
     s.set_defaults(func=cmd_serve)
+
+    sp = sub.add_parser("scan-path", help="Dosya veya klasörü çevrimdışı güvenlik taramasından geçir")
+    sp.add_argument("path", help="Taranacak dosya veya klasör yolu")
+    sp.add_argument("--no-recursive", action="store_true", help="Alt klasörlere inme")
+    sp.add_argument("--max-files", type=int, default=200)
+    sp.add_argument("--quarantine", action="store_true", help="Riskli dosyaları otomatik karantinaya al")
+    sp.add_argument("--quarantine-dir", default="", help="Özel karantina kasası klasörü")
+    sp.add_argument("--notify", action="store_true", help="Windows Toast bildirimi gönder")
+    sp.add_argument("--pause", action="store_true", help="Çıkışta Enter bekle (sağ-tık menüsü için)")
+    sp.add_argument("--expand-urls", action="store_true")
+    _add_common(sp, with_fail=True)
+    sp.set_defaults(func=cmd_scan_path)
+
+    qf = sub.add_parser("quarantine-file", help="Şüpheli dosyayı .quarantined kasasına taşı")
+    qf.add_argument("path", help="Karantinaya alınacak dosya")
+    qf.add_argument("--quarantine-dir", default="")
+    qf.add_argument("--notify", action="store_true")
+    qf.set_defaults(func=cmd_quarantine_file)
+
+    w = sub.add_parser("watch", help="İndirilenler / klasörleri yeni tehditlere karşı izle")
+    w.add_argument("--dir", action="append", default=[], help="İzlenecek klasör (tekrarlanabilir)")
+    w.add_argument("--interval", type=int, default=10, help="Tarama aralığı (saniye)")
+    w.add_argument("--alert-on", default="HIGH", choices=["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+    w.add_argument("--action", default="notify-only", choices=["notify-only", "quarantine"])
+    w.add_argument("--quarantine-dir", default="")
+    w.add_argument("--alert-log", default="")
+    w.add_argument("--state", default="")
+    w.add_argument("--notify", default="on", choices=["on", "off"])
+    w.add_argument("--once", action="store_true")
+    _add_common(w, with_fail=True)
+    w.set_defaults(func=cmd_watch)
+
+    cb = sub.add_parser("clipboard", help="Windows pano (ClickFix / phishing link) koruması")
+    cb.add_argument("--once", action="store_true")
+    cb.add_argument("--text", default=None, help="Panodan okumak yerine verilen metni analiz et")
+    cb.add_argument("--interval", type=float, default=1.5)
+    cb.add_argument("--alert-on", default="MEDIUM", choices=["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+    cb.add_argument("--notify", default="on", choices=["on", "off"])
+    _add_common(cb, with_fail=True)
+    cb.set_defaults(func=cmd_clipboard)
+
+    sv = sub.add_parser("service", help="Windows Arka Plan Güvenlik Servisi yönetimi")
+    svsub = sv.add_subparsers(dest="service_action", required=True)
+    sv_i = svsub.add_parser("install", help="Windows Servisini kur (Yönetici)")
+    sv_i.add_argument("--exe", default="")
+    sv_i.add_argument("--watch-interval", type=int, default=10)
+    sv_i.add_argument("--mail-interval", type=int, default=10)
+    sv_i.add_argument("--action", default="notify-only", choices=["notify-only", "quarantine"])
+    sv_i.set_defaults(func=cmd_service)
+    svsub.add_parser("uninstall", help="Windows Servisini kaldır").set_defaults(func=cmd_service)
+    svsub.add_parser("start", help="Windows Servisini başlat").set_defaults(func=cmd_service)
+    svsub.add_parser("stop", help="Windows Servisini durdur").set_defaults(func=cmd_service)
+    sv_st = svsub.add_parser("status", help="Servis durumunu göster")
+    sv_st.add_argument("--json", action="store_true")
+    sv_st.add_argument("--out", default="")
+    sv_st.set_defaults(func=cmd_service)
+    sv_r = svsub.add_parser("run", help="Servis döngüsünü çalıştır (SCM veya --once/--foreground)")
+    sv_r.add_argument("--watch-dir", action="append", default=[])
+    sv_r.add_argument("--watch-interval", type=int, default=10)
+    sv_r.add_argument("--mail-interval", type=int, default=10)
+    sv_r.add_argument("--action", default="notify-only", choices=["notify-only", "quarantine"])
+    sv_r.add_argument("--no-mail", action="store_true")
+    sv_r.add_argument("--once", action="store_true")
+    sv_r.add_argument("--foreground", action="store_true")
+    sv_r.add_argument("--json", action="store_true")
+    sv_r.add_argument("--out", default="")
+    sv_r.set_defaults(func=cmd_service)
+
+    ag = sub.add_parser("agent", help="Kullanıcı oturumu Tepsi + Pano + Bildirim ajanı")
+    ag.add_argument("--tray", action="store_true")
+    ag.add_argument("--background", action="store_true")
+    ag.add_argument("--clipboard", default="on", choices=["on", "off"])
+    ag.add_argument("--alert-log", default="")
+    ag.add_argument("--alert-on", default="HIGH", choices=["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+    ag.add_argument("--notify", default="on", choices=["on", "off"])
+    ag.add_argument("--once", action="store_true")
+    ag.set_defaults(func=cmd_agent)
+
+    pl = sub.add_parser("plugin", help="Windows Güvenlik Eklentisi tek-komut kurulumu/durumu")
+    plsub = pl.add_subparsers(dest="plugin_action", required=True)
+    pl_i = plsub.add_parser("install", help="Servis + Sağ-tık + Tarayıcı + Protokol + Tepsi Ajanı kur")
+    pl_i.add_argument("--exe", default="")
+    pl_i.add_argument("--user-only", action="store_true", help="Yalnızca mevcut kullanıcı (HKCU, servissiz)")
+    pl_i.add_argument("--no-service", action="store_true")
+    pl_i.add_argument("--no-start", action="store_true")
+    pl_i.add_argument("--extension-id", action="append", default=[], help="Ek Chromium eklenti ID'si")
+    pl_i.add_argument("--json", action="store_true")
+    pl_i.add_argument("--out", default="")
+    pl_i.set_defaults(func=cmd_plugin)
+    pl_u = plsub.add_parser("uninstall", help="Windows Güvenlik Eklentisini kaldır")
+    pl_u.add_argument("--user-only", action="store_true")
+    pl_u.add_argument("--json", action="store_true")
+    pl_u.add_argument("--out", default="")
+    pl_u.set_defaults(func=cmd_plugin)
+    pl_s = plsub.add_parser("status", help="Eklenti kurulum ve koruma durumunu göster")
+    pl_s.add_argument("--json", action="store_true")
+    pl_s.add_argument("--out", default="")
+    pl_s.set_defaults(func=cmd_plugin)
+
+    nh = sub.add_parser("native-host", help="Tarayıcı Native Messaging köprüsü (Chrome/Edge/Firefox)")
+    nh.add_argument("--alert-log", default="")
+    nh.set_defaults(func=cmd_native_host)
+
+    br = sub.add_parser("browser", help="Tarayıcı webmail eklentisi Native Host kaydı ve durumu")
+    brsub = br.add_subparsers(dest="browser_action", required=True)
+    br_r = brsub.add_parser("register", help="Chrome/Edge/Brave/Firefox Native Host kaydet")
+    br_r.add_argument("--exe", default="")
+    br_r.add_argument("--user-only", action="store_true")
+    br_r.add_argument("--extension-id", action="append", default=[])
+    br_r.add_argument("--json", action="store_true")
+    br_r.add_argument("--out", default="")
+    br_r.set_defaults(func=cmd_browser)
+    br_u = brsub.add_parser("unregister", help="Tarayıcı Native Host kayıtlarını sil")
+    br_u.add_argument("--user-only", action="store_true")
+    br_u.add_argument("--json", action="store_true")
+    br_u.add_argument("--out", default="")
+    br_u.set_defaults(func=cmd_browser)
+    br_s = brsub.add_parser("status", help="Tarayıcı Native Host kayıt durumunu göster")
+    br_s.add_argument("--json", action="store_true")
+    br_s.add_argument("--out", default="")
+    br_s.set_defaults(func=cmd_browser)
     return p
 
 
@@ -1476,11 +1987,16 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
     else:
         argv = list(argv)
-    if len(argv) == 1:
+    if any(a.startswith(("chrome-extension://", "moz-extension://")) for a in argv):
+        argv = ["native-host"]
+    elif len(argv) == 1:
         parsed = parse_protocol_uri(argv[0])
         if parsed:
             action, kw = parsed
-            argv = ["quarantine", kw["uid"], "--action", action]
+            if action == "quarantine-file":
+                argv = ["quarantine-file", kw["path"], "--notify"]
+            else:
+                argv = ["quarantine", kw["uid"], "--action", action]
     # argparse hatasında (bilinmeyen komut/argüman) SystemExit kodu aynen geçer.
     args = build_parser().parse_args(argv)
     set_explicit(args.config or None)

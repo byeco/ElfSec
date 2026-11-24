@@ -42,6 +42,11 @@ DEFAULT_RULES: dict[str, dict] = {
     "attach_risky": {"weight": 20, "enabled": True},
     "attach_macro": {"weight": 15, "enabled": True},
     "attach_archive": {"weight": 8, "enabled": True},
+    "file_motw": {"weight": 15, "enabled": True},
+    "file_rlo": {"weight": 35, "enabled": True},
+    "file_magic_mismatch": {"weight": 50, "enabled": True},
+    "script_lolbin": {"weight": 35, "enabled": True},
+    "clipboard_clickfix": {"weight": 40, "enabled": True},
 }
 
 _CACHE: dict = {"mtime": 0.0, "rules": {}}

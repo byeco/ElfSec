@@ -146,5 +146,33 @@ def notify_alarm(report: dict) -> bool:
                  force_console=False, actions=actions)
 
 
+def notify_file_alarm(report: dict) -> bool:
+    import urllib.parse
+
+    lvl = report.get("risk_level", "?")
+    score = report.get("risk_score", "?")
+    fname = str(report.get("filename") or report.get("subject") or "Dosya")[:80]
+    reasons = report.get("reasons") or []
+    detail = f"{fname} — {reasons[0]}" if reasons else fname
+    fpath = str(report.get("file", "") or "")
+    already_q = bool(report.get("quarantined_to"))
+    actions = None
+    if fpath and not already_q:
+        encoded = urllib.parse.quote(fpath, safe="")
+        actions = [("Karantinaya al", f"elfsec:quarantine-file?path={encoded}"),
+                   ("Yoksay", "dismiss")]
+    return toast(f"ElfSec DOSYA ALARMI [{lvl}] {score}/100", detail[:280],
+                 force_console=False, actions=actions)
+
+
+def notify_clipboard_alarm(report: dict) -> bool:
+    lvl = report.get("risk_level", "?")
+    score = report.get("risk_score", "?")
+    reasons = report.get("reasons") or []
+    detail = reasons[0] if reasons else str(report.get("summary", "Panoda şüpheli içerik"))
+    return toast(f"ElfSec PANO ALARMI [{lvl}] {score}/100", detail[:280],
+                 force_console=False, actions=[("Yoksay", "dismiss")])
+
+
 def notify_error(detail: str) -> bool:
     return toast("ElfSec hatası", detail[:300], force_console=True)

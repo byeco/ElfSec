@@ -48,6 +48,18 @@ class ConfigError(Exception):
         super().__init__("; ".join(hints))
 
 
+def machine_data_dir() -> Path:
+    """Sistem/servis düzeyinde veri ve config dizini (ProgramData)."""
+    if os.name == "nt":
+        base = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
+        return base / APP_NAME
+    return Path("/var/lib/elfsec")
+
+
+def machine_config_path() -> Path:
+    return machine_data_dir() / "elfsec.env"
+
+
 def default_user_config_path() -> Path:
     # Test/CI izolasyonu: her platformda geçerli açık geçersiz kılma.
     override = os.environ.get("ELFSEC_CONFIG_DIR", "").strip()
@@ -66,6 +78,8 @@ def candidate_files(explicit: str | None = None) -> list[Path]:
     elif os.environ.get("ELFSEC_CONFIG"):
         cands.append(Path(os.environ["ELFSEC_CONFIG"]))
     cands.append(default_user_config_path())
+    if not os.environ.get("ELFSEC_CONFIG_DIR", "").strip():
+        cands.append(machine_config_path())
     cands += [Path("backend") / ".env", Path(".env")]
     return cands
 
@@ -161,12 +175,12 @@ def current_settings() -> Settings:
     return _CACHE["settings"]
 
 
-def upsert_kv(path: Path, key: str, value: str, secret: bool = False) -> str:
+def upsert_kv(path: Path, key: str, value: str, secret: bool = False, scope: str = "user") -> str:
     """Dosyaya KEY=VALUE yaz/güncelle. Dönüş: saklanan ham değer."""
     key = key.upper()
     if key not in FIELD_BY_KEY:
         raise ConfigError([f"Bilinmeyen ayar: {key}. Geçerli: {', '.join(sorted(FIELD_BY_KEY))}"])
-    stored = secret_vault.protect(value) if (secret or key in SECRET_KEYS) else value
+    stored = secret_vault.protect(value, scope=scope) if (secret or key in SECRET_KEYS) else value
     if secret or key in SECRET_KEYS:
         ok, why = secret_vault.available()
         if not ok:
@@ -177,7 +191,7 @@ def upsert_kv(path: Path, key: str, value: str, secret: bool = False) -> str:
     stored_q = f'"{stored}"' if any(c in stored for c in " #\"") else stored
     lines.append(f"{key}={stored_q}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    _lock_down(path)
+    _lock_down(path, machine=(scope == "machine"))
     return stored
 
 
@@ -206,20 +220,30 @@ def _windows_acl_tight(path: Path) -> bool | None:
         return None
 
 
-def _lock_down(path: Path) -> None:
-    """Gizli dosya: sadece sahibi okusun (POSIX 0o600; Windows icacls)."""
+def _lock_down(path: Path, machine: bool = False) -> None:
+    """Gizli dosya: sadece sahibi (veya makine kasasında SYSTEM/Administrators) okusun."""
     try:
         if os.name == "nt":
             # Gerçek koruma DPAPI şifrelemesidir; ACL ek kilit olarak denenir.
             try:
                 import subprocess
 
-                user = os.environ.get("USERNAME", "")
-                if user:
+                if machine:
+                    grants = ["SYSTEM:F", "Administrators:F"]
+                    user = os.environ.get("USERNAME", "")
+                    if user and user.upper() not in ("SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE"):
+                        grants.append(f"{user}:F")
                     subprocess.run(
-                        ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+                        ["icacls", str(path), "/inheritance:r", "/grant:r", *grants],
                         capture_output=True, timeout=10, check=False,
                     )
+                else:
+                    user = os.environ.get("USERNAME", "")
+                    if user:
+                        subprocess.run(
+                            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+                            capture_output=True, timeout=10, check=False,
+                        )
             except Exception:
                 pass
             return

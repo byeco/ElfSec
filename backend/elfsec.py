@@ -16,7 +16,8 @@ except Exception:
 
 
 def _maybe_hide_console() -> None:
-    if "guard" in sys.argv[1:] and any(a in ("--tray", "--background") for a in sys.argv[1:]):
+    if any(c in sys.argv[1:] for c in ("guard", "agent")) and any(
+            a in ("--tray", "--background") for a in sys.argv[1:]):
         try:
             from app.tray import hide_console
 

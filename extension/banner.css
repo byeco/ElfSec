@@ -1,0 +1,112 @@
+#elfsec-mail-banner.elfsec-banner {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 8px 0 12px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 5px solid #10b981;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+#elfsec-mail-banner.elfsec-lvl-low {
+  border-left-color: #10b981;
+  background: #064e3b;
+}
+
+#elfsec-mail-banner.elfsec-lvl-medium {
+  border-left-color: #f59e0b;
+  background: #78350f;
+}
+
+#elfsec-mail-banner.elfsec-lvl-high {
+  border-left-color: #ef4444;
+  background: #7f1d1d;
+}
+
+#elfsec-mail-banner.elfsec-lvl-critical {
+  border-left-color: #dc2626;
+  background: #450a0a;
+}
+
+#elfsec-mail-banner .elfsec-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#elfsec-mail-banner .elfsec-badge {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#elfsec-mail-banner .elfsec-meta {
+  flex: 1;
+  opacity: 0.95;
+}
+
+#elfsec-mail-banner .elfsec-rescan-btn {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#elfsec-mail-banner .elfsec-reasons {
+  margin: 8px 0 0 18px;
+  padding: 0;
+}
+
+#elfsec-mail-banner .elfsec-rec {
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+a.elfsec-sus-link {
+  outline: 2px dashed #ef4444 !important;
+  outline-offset: 2px;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+#elfsec-floating-toast.elfsec-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483647;
+  max-width: 360px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #111827;
+  color: #f9fafb;
+  border-left: 5px solid #10b981;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+#elfsec-floating-toast.elfsec-lvl-medium { border-left-color: #f59e0b; }
+#elfsec-floating-toast.elfsec-lvl-high,
+#elfsec-floating-toast.elfsec-lvl-critical { border-left-color: #ef4444; }
+
+#elfsec-floating-toast .elfsec-toast-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#elfsec-floating-toast .elfsec-toast-close {
+  margin-top: 8px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}

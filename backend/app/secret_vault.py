@@ -11,11 +11,15 @@ import base64
 import os
 
 PREFIX = "ENC("
+MACHINE_PREFIX = "ENCM("
 SUFFIX = ")"
+CRYPTPROTECT_LOCAL_MACHINE = 0x04
 
 
 def is_protected(value: str) -> bool:
-    return isinstance(value, str) and value.startswith(PREFIX) and value.endswith(SUFFIX)
+    return isinstance(value, str) and value.endswith(SUFFIX) and (
+        value.startswith(PREFIX) or value.startswith(MACHINE_PREFIX)
+    )
 
 
 def available() -> tuple[bool, str]:
@@ -38,13 +42,14 @@ def _dpapi_blob(data: bytes):
     return blob, buf  # buf referansı caller'da canlı tutulmalı
 
 
-def _dpapi_protect(plain: bytes) -> bytes:
+def _dpapi_protect(plain: bytes, machine: bool = False) -> bytes:
     import ctypes
 
     crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
     in_blob, _keep = _dpapi_blob(plain)
     out_blob, _ = _dpapi_blob(b"")
-    if not crypt32.CryptProtectData(ctypes.byref(in_blob), None, None, None, None, 0, ctypes.byref(out_blob)):
+    flags = CRYPTPROTECT_LOCAL_MACHINE if machine else 0
+    if not crypt32.CryptProtectData(ctypes.byref(in_blob), None, None, None, None, flags, ctypes.byref(out_blob)):
         raise OSError("DPAPI şifreleme başarısız")
     try:
         return ctypes.string_at(out_blob.pbData, out_blob.cbData)
@@ -66,10 +71,12 @@ def _dpapi_unprotect(blob: bytes) -> bytes:
         kernel32.LocalFree(out_blob.pbData)
 
 
-def protect(plain: str) -> str:
-    """Açık metni saklanabilir forma çevir (Windows'ta şifreli)."""
+def protect(plain: str, scope: str = "user") -> str:
+    """Açık metni saklanabilir forma çevir (Windows'ta kullanıcı veya makine DPAPI)."""
     if os.name == "nt":
-        return PREFIX + base64.b64encode(_dpapi_protect(plain.encode("utf-8"))).decode("ascii") + SUFFIX
+        machine = scope == "machine"
+        pfx = MACHINE_PREFIX if machine else PREFIX
+        return pfx + base64.b64encode(_dpapi_protect(plain.encode("utf-8"), machine=machine)).decode("ascii") + SUFFIX
     return plain
 
 
@@ -79,5 +86,6 @@ def unprotect(stored: str) -> str:
         return stored
     if os.name != "nt":
         raise OSError("ENC(...) değer Windows dışında çözülemez")
-    raw = base64.b64decode(stored[len(PREFIX):-len(SUFFIX)])
+    pfx = MACHINE_PREFIX if stored.startswith(MACHINE_PREFIX) else PREFIX
+    raw = base64.b64decode(stored[len(pfx):-len(SUFFIX)])
     return _dpapi_unprotect(raw).decode("utf-8")

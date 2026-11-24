@@ -1,351 +1,305 @@
-# ElfSec — Email Security Analysis Tool (v1.2.1)
+# ElfSec — Windows Güvenlik Eklentisi & E-posta Analiz Aracı (v1.4.0)
 
-Fetches email over IMAP, **sanitizes malicious HTML**, and runs **phishing / prompt-injection** analysis locally.
-TOOL-only: single `elfsec.exe` — CLI + background guard + `kontrol` self-audit. No server / frontend / Docker.
+[🇹🇷 Türkçe](#-türkçe) | [🇬🇧 English](#-english)
 
-> Student-built, offline email security tool (Python). It fetches mail over IMAP,
-> sanitizes malicious HTML, and scores phishing / prompt-injection locally — no API keys, no cloud,
-> your mail never leaves your PC. Single `elfsec.exe`, 161 tests, 66 self-audits (`kontrol`) green. v1.1.0 adds an opt-in stdlib-only web API (`elfsec serve`) so your own site can score mail.
+> **%100 Yerel · API Anahtarsız · Tek `elfsec.exe` · 194 Test · 76/76 `kontrol` PASS · 8 Sabit Bağımlılık**
+>
+> Tarayıcıdaki webmail (**Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton Mail**), masaüstü mail uygulamaları (**Outlook Classic/New, Windows Mail, `.eml`/`.msg`, IMAP/OAuth2**), **Windows dosya/İndirilenler** ve **pano (ClickFix)** tehditlerini cihazınızdan dışarı tek byte çıkarmadan tespit eden yerel **Windows Güvenlik Eklentisi**.
 
-## Download (for users — `elfsec.exe`)
+---
 
-No code, no Python needed — just download a single file:
+## 🇹🇷 Türkçe
 
-1. Download `elfsec.exe` from the GitHub **Releases** page (auto-built on every `v*` tag, ~19 MB).
-2. Put a `.env` file next to it (the only secret is your IMAP password — no API key needed):
-   ```ini
-   IMAP_HOST=imap.gmail.com
-   IMAP_USER=you@gmail.com
-   IMAP_PASSWORD=app-password
-   ```
-3. Run it — two ways:
-   - **Double-click:** opens an interactive menu (setup / status / scan / protection / audit), the window stays open.
-   - **From terminal:**
-   ```cmd
-   elfsec.exe health
-   elfsec.exe guard --unseen --interval 10
-   ```
+### Neleri Korur? (4 Güvenlik Katmanı)
 
-> Note: because the exe is unsigned, Windows SmartScreen may warn on first launch → "Run anyway".
-> For developers, source install is below. To build the exe yourself: `backend\scripts\build_exe.ps1`.
-
-## How it works? (short version)
-
-Imagine a suspicious email arrives. ElfSec inspects it in 4 steps:
-
-```
-READ  ->  SANITIZE  ->  ANALYZE  ->  REPORT
-```
-
-1. **READ:** Connects to your mailbox over IMAP and pulls the mail (headers + body). You can also pass a single mail from a file.
-2. **SANITIZE:** Strips dangerous parts from the mail HTML (`<script>`, hidden tracking pixels, `javascript:` links...) and extracts safe plain text. Links are collected on the side for analysis.
-3. **ANALYZE:** Scores the clean text (0-100): is there "click now!" pressure? Does the sender pretend to be a bank? Is the link on a shady TLD like `.tk`? Does the reply address match the sender? No internet, no AI service — all with local hand-written rules, inside your own PC.
-4. **REPORT:** Prints the result: risk score + level (LOW/MEDIUM/HIGH/CRITICAL) + reasons + what to do ("don't click the link, don't open the attachment...").
-
-Example:
-```cmd
-python -m app.cli analyze --subject "Your account will be closed!" --sender "x@bank-secure.tk" --body "Click now http://evil.tk/verify"
-→ [XXX] RISK 80/100 [CRITICAL] — Phishing pattern + suspicious link + sender spoof
-```
-
-## Tool pipeline
-
-```
-READ  ->  SANITIZE  ->  ANALYZE  ->  REPORT
-```
-
-| Stage | What it does | Library |
+| Katman | Ne Yapar? | Bileşenler |
 |---|---|---|
-| **1. READ** | Connects to Gmail/Outlook over IMAP, lists folders, fetches emails (header + body). Runs in background via `asyncio.to_thread` to avoid blocking the server. | `imap-tools` |
-| **2. SANITIZE (core)** | Drops `<script>/<style>/<iframe>/<img>` and `on*` handlers, cuts `javascript:` URLs, counts and blocks **1x1 tracking pixels**, adds `rel="nofollow noopener"` to links. Then extracts pure plain text. URLs are collected **before** sanitizing (for analysis). | `bleach` + `beautifulsoup4` + `lxml` |
-| **3. ANALYZE** | Inspects clean text + URLs + sender. **No API key, no internet** — deterministic local engine: phishing patterns, homoglyph/punycode and IP URLs, sender spoofing, urgency pressure, attachment traps, prompt injection. Email content never goes to a third party. | pure Python (`ai_analyzer`) |
-| **4. REPORT** | `risk_score (0-100)`, `risk_level (LOW/MEDIUM/HIGH/CRITICAL)`, reasons, suspicious URLs, `phishing/prompt-injection` flags, action recommendation. | `pydantic` |
-| **Defense** | Folder/limit/interval inputs are validated (`..` forbidden, limit 1-100), body truncated to 30k, 500k DoS cutoff. Passwords are never hard-coded, read from layered config (env > `--config` > user file). | layered settings + `kontrol` |
+| **1. Tarayıcı Webmail Eklentisi (`extension/`)** | **Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton Mail** içinde açılan postayı okur; gövde üstüne canlı risk şeridi (`LOW`–`CRITICAL`) ekler, şüpheli linkleri işaretler ve tıklamada onay ister. Native Host bağlı değilken bile yerleşik JS yedek motoruyla çalışır. | Manifest V3 + `content.js` + `fallback_analyzer.js` + `elfsec.exe native-host` |
+| **2. Masaüstü Mail & IMAP** | **Outlook Classic** (`INetCache\Content.Outlook\*`), **Yeni Outlook** ve **Windows Mail** ek önbelleklerini otomatik izler; `.eml`/`.msg` dosyalarına sağ-tık tarama ekler. İsteğe bağlı olarak IMAP/OAuth2 ile gelen kutusunu periyodik tarar (`triage`, `guard`). | `file_watcher` + `imap_client` + `oauth` |
+| **3. Windows Dosya & İndirilenler** | İndirilenler klasörünü ve Gezgin sağ-tık seçili dosya/klasörleri tarar: çift uzantı (`fatura.pdf.exe`), Unicode RLO gizleme, `.pdf`/`.docx`/`.jpg` içine gizlenmiş `MZ` (PE/EXE) dosyası, NTFS Mark-of-the-Web (`Zone.Identifier`), LOLBin script/`.lnk` analizi ve `.quarantined` karantina kasası. | `file_scanner` + `scan-path` + `quarantine-file` |
+| **4. Pano (Clipboard) / ClickFix** | Kopyalanan `powershell -w hidden -enc`, `mshta http://...`, `cmd /c curl ...`, `certutil -urlcache` gibi ClickFix tuzaklarını ve phishing URL'lerini yakalayıp Windows Toast ile uyarır. | `clipboard_guard` + `agent --tray` |
 
-## Installation (developers)
+---
+
+### İndirme ve Kurulum
+
+#### Seçenek A — Tek Komutla Tam Windows Güvenlik Eklentisi Kurulumu (Önerilen)
+
+1. [GitHub Releases](https://github.com/byeco/ElfSec/releases) sayfasından `elfsec.exe` dosyasını indirin (veya kaynak koddan `backend\scripts\build_exe.ps1` ile derleyin).
+2. PowerShell'i **Yönetici olarak çalıştırın** ve kurulum betiğini çalıştırın:
+   ```powershell
+   cd backend
+   powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
+   ```
+   Bu işlem otomatik olarak:
+   - `elfsec.exe` ve `extension\` klasörünü `C:\Program Files\ElfSec\` altına kurar,
+   - `ElfSecGuard` Windows Servisini (SYSTEM yetkisinde İndirilenler + Outlook/Windows Mail ek önbelleği + opsiyonel IMAP koruyucusu) başlatır,
+   - Windows Gezgini sağ-tık menüsünü (tüm dosyalar, klasörler, `.eml`, `.msg`) ve `elfsec://` protokolünü kaydeder,
+   - Chrome, Edge, Brave ve Firefox Native Messaging Host (`com.elfsec.guard`) kayıtlarını ekler,
+   - Sistem Tepsisi + Pano koruma ajanını (`elfsec.exe agent --tray`) başlatır.
+
+   Kaldırmak için (Yönetici PowerShell):
+   ```powershell
+   cd backend
+   powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1
+   ```
+
+> **Alternatif (Inno Setup yükleyici):** `ISCC.exe installer\elfsec.iss` ile `installer\Output\ElfSecSetup.exe` kurulum paketi üretebilirsiniz. İmzalanmamış exe ilk açılışta Windows SmartScreen uyarısı verirse *"Ek bilgi → Yine de çalıştır"* seçilebilir.
+
+#### Seçenek B — Tarayıcı Webmail Eklentisini Yükleme (Chrome / Edge / Brave)
+
+1. Tarayıcıda `chrome://extensions` (veya `edge://extensions`) adresini açın.
+2. Sağ üstten **Geliştirici modu (Developer mode)** anahtarını açın.
+3. **Paketlenmemiş öğe yükle (Load unpacked)** düğmesine tıklayın ve `C:\Program Files\ElfSec\extension` (veya repodaki `extension\`) klasörünü seçin.
+4. Eklenti, sabit Public Key sayesinde otomatik olarak `jkmbfppdffpiodlmikbdfdihdkejcfjj` kimliğini alır ve `com.elfsec.guard` Native Host'una bağlanır. Gmail veya Outlook Web'de bir e-posta açtığınızda üstte canlı güvenlik şeridi görünür.
+
+*(Native Host kaydını tek başına yönetmek için: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`)*
+
+---
+
+### Nasıl Çalışır?
+
+```
+OKU (IMAP / .eml / DOM / Dosya / Pano)
+  -> TEMİZLE (Bleach + BeautifulSoup/lxml — XSS/script/takip pikseli temizliği)
+  -> ANALİZ ET (yerel deterministik kurallar — API anahtarı yok, internet yok)
+  -> RAPORLA (0-100 risk skoru, LOW/MEDIUM/HIGH/CRITICAL, Toast & karantina)
+```
+
+Örnek terminal çıktısı:
+```cmd
+elfsec.exe analyze --subject "Hesabiniz kapanacak!" --sender "destek@banka-secure.tk" --body "Hemen tikla http://evil.tk/verify"
+→ [XXX] RISK 80/100 [CRITICAL] (motor: elfsec-local/1.0)
+```
+
+---
+
+### Temel Komutlar (CLI)
+
+```powershell
+# Eklenti, servis ve tarayıcı durumu
+elfsec.exe plugin status
+elfsec.exe service status
+elfsec.exe browser status
+
+# Dosya, klasör veya pano tarama
+elfsec.exe scan-path "C:\Users\ad\Downloads\fatura.pdf" --notify
+elfsec.exe quarantine-file "C:\Users\ad\Downloads\supheli.ps1"
+elfsec.exe watch --once
+elfsec.exe clipboard --once --text "powershell -w hidden -enc JAB4"
+
+# E-posta (IMAP + OAuth2) kurulumu ve tarama
+elfsec.exe config setup                 # kolay sihirbaz (Gmail/Outlook/Yahoo/Yandex/iCloud/Özel)
+elfsec.exe config login --provider outlook   # veya gmail (OAuth2, şifresiz)
+elfsec.exe config test
+elfsec.exe triage --limit 50 --unseen --fail-on HIGH --out triage.jsonl
+elfsec.exe guard --unseen --interval 10 --tray
+
+# Panel, kurallar, öz-denetim ve yerel Web API
+elfsec.exe dashboard
+elfsec.exe rules show
+elfsec.exe kontrol --fail-only
+```
+
+**Çıkış kodları:** `0` = temiz / başarılı · `1` = `--fail-on` eşiğinde tehdit bulundu · `2` = ortam / yapılandırma hatası.
+
+<details>
+<summary>Katmanlı Ayar Sistemi, OAuth2 ve Web API (Next.js) Detayları (TR)</summary>
+
+- **Ayar önceliği:** Ortam değişkenleri → `--config` / `ELFSEC_CONFIG` → `%APPDATA%\ElfSec\elfsec.env` (veya `~/.config/elfsec/elfsec.env`) → `C:\ProgramData\ElfSec\elfsec.env` → `backend\.env`.
+- **Şifre kasası:** Kullanıcı sırları Windows DPAPI ile `ENC(...)`, servis sırları makine düzeyi DPAPI ile `ENCM(...)` biçiminde saklanır; başka kullanıcı/makinede çözülemez.
+- **OAuth2 (Outlook / Gmail):** Windows Mail'deki mevcut oturum sessizce alınamaz; kullanıcı kendi Azure / Google Desktop Client ID'si ile tarayıcıdan bir kez onay verir (`elfsec.exe config login --provider outlook|gmail`), refresh token şifreli kasada saklanır.
+- **Web API (`elfsec serve`):** İsteğe bağlı stdlib-only HTTP sunucusu (`GET /v1/health`, `POST /v1/analyze`, `POST /v1/sanitize`). `ELFSEC_API_TOKEN` ortam değişkeni olmadan ağa açık başlamayı reddeder; `web/elfsec.js` ve `web/route-example.js` Next.js App Router sunucu tarafı örneği içerir.
+
+</details>
+
+---
+
+### Geliştirici Kurulumu, Testler & SDK
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+
+python -m pytest tests -q                # 194 test
+python -m app.cli kontrol --fail-only    # 76 güvenlik denetimi (SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE,WIN)
+```
+
+Python SDK:
+```python
+from app.sdk import scan_text, scan_file, sanitize
+
+report = scan_text(subject="Fatura", body="<p>Hemen öde http://evil.tk/o</p>", sender="a@b.com")
+print(report["risk_level"], report["risk_score"], report["reasons"])
+```
+
+---
+
+## 🇬🇧 English
+
+### What Does It Protect? (4 Security Layers)
+
+| Layer | What It Does | Components |
+|---|---|---|
+| **1. Browser Webmail Extension (`extension/`)** | Inspects opened emails directly inside **Gmail, Outlook Web, Yahoo Mail, Yandex Mail, iCloud Mail, and Proton Mail**; injects a live risk banner (`LOW`–`CRITICAL`) above the message, highlights suspicious links, and guards clicks. Falls back to an embedded offline JS engine when the Native Host is absent. | Manifest V3 + `content.js` + `fallback_analyzer.js` + `elfsec.exe native-host` |
+| **2. Desktop Mail Apps & IMAP** | Automatically monitors **Outlook Classic** (`INetCache\Content.Outlook\*`), **New Outlook**, and **Windows Mail** attachment cache folders; adds Explorer right-click analysis for `.eml` and `.msg` files; supports periodic IMAP/OAuth2 scanning (`triage`, `guard`). | `file_watcher` + `imap_client` + `oauth` |
+| **3. Windows File & Downloads Protection** | Scans Downloads and Explorer right-clicked files/folders for double extensions (`invoice.pdf.exe`), Unicode RLO filename spoofing, PE `MZ` executables disguised as `.pdf`/`.docx`/`.jpg`, NTFS Mark-of-the-Web (`Zone.Identifier`), LOLBin `.ps1`/`.bat`/`.vbs`/`.hta`/`.lnk` scripts, and isolates threats as `.quarantined`. | `file_scanner` + `scan-path` + `quarantine-file` |
+| **4. Clipboard / ClickFix Guard** | Detects pasted ClickFix lures (`powershell -w hidden -enc`, `mshta http://...`, `cmd /c curl ...`, `certutil -urlcache`) and phishing URLs, alerting immediately via Windows Toast notifications. | `clipboard_guard` + `agent --tray` |
+
+---
+
+### Download & Installation
+
+#### Option A — One-Command Windows Security Extension Install (Recommended)
+
+1. Download `elfsec.exe` from [GitHub Releases](https://github.com/byeco/ElfSec/releases) (or build from source with `backend\scripts\build_exe.ps1`).
+2. Open PowerShell **as Administrator** and run:
+   ```powershell
+   cd backend
+   powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
+   ```
+   This automatically:
+   - Installs `elfsec.exe` and `extension\` into `C:\Program Files\ElfSec\`,
+   - Installs and starts the `ElfSecGuard` Windows Service (SYSTEM privilege — watches all users' Downloads + Outlook/Windows Mail attachment caches + optional IMAP),
+   - Registers Windows Explorer right-click menus (all files, folders, `.eml`, `.msg`) and the `elfsec://` URI protocol,
+   - Registers Native Messaging hosts (`com.elfsec.guard`) for Chrome, Edge, Brave, and Firefox,
+   - Launches the user-session System Tray + Clipboard + Service Alert Bridge (`elfsec.exe agent --tray`).
+
+   To uninstall (Administrator PowerShell):
+   ```powershell
+   cd backend
+   powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1
+   ```
+
+> **Installer alternative (Inno Setup):** Build `installer\Output\ElfSecSetup.exe` with `ISCC.exe installer\elfsec.iss`. Because `elfsec.exe` is currently unsigned, Windows SmartScreen may show a warning on first run → *"More info → Run anyway"*.
+
+#### Option B — Load the Browser Webmail Extension (Chrome / Edge / Brave)
+
+1. Navigate to `chrome://extensions` (or `edge://extensions`).
+2. Enable **Developer mode** in the top-right corner.
+3. Click **Load unpacked** and select `C:\Program Files\ElfSec\extension` (or `extension/` in this repo).
+4. The manifest's pinned public key deterministically sets the extension ID to `jkmbfppdffpiodlmikbdfdihdkejcfjj`, connecting automatically to `com.elfsec.guard`. Opening any email in Gmail or Outlook Web immediately displays the ElfSec risk banner.
+
+*(Manage browser Native Host registration manually via: `elfsec.exe browser register` · `elfsec.exe browser status` · `elfsec.exe browser unregister`)*
+
+---
+
+### How It Works
+
+```
+READ (IMAP / .eml / DOM / File / Clipboard)
+  -> SANITIZE (Bleach + BeautifulSoup/lxml — strips XSS/scripts/1x1 tracking pixels)
+  -> ANALYZE (offline deterministic engine — zero API keys, zero cloud)
+  -> REPORT (0-100 risk score, LOW/MEDIUM/HIGH/CRITICAL, Windows Toast & quarantine)
+```
+
+Sample CLI run:
+```cmd
+elfsec.exe analyze --subject "Your account will be closed!" --sender "x@bank-secure.tk" --body "Click now http://evil.tk/verify"
+→ [XXX] RISK 80/100 [CRITICAL] (engine: elfsec-local/1.0)
+```
+
+---
+
+### Key CLI Commands & Exit Codes
+
+```powershell
+# Plugin, service, and browser status
+elfsec.exe plugin status
+elfsec.exe service status
+elfsec.exe browser status
+
+# File, directory, and clipboard scanning
+elfsec.exe scan-path "C:\Users\me\Downloads\invoice.pdf" --notify
+elfsec.exe quarantine-file "C:\Users\me\Downloads\suspicious.ps1"
+elfsec.exe watch --once
+elfsec.exe clipboard --once --text "powershell -w hidden -enc JAB4"
+
+# Email (IMAP + OAuth2) setup and continuous guard
+elfsec.exe config setup
+elfsec.exe config login --provider outlook   # or gmail
+elfsec.exe config test
+elfsec.exe triage --limit 50 --unseen --fail-on HIGH --out triage.jsonl
+elfsec.exe guard --unseen --interval 10 --tray
+
+# Dashboard, rules, self-audit, and optional Web API
+elfsec.exe dashboard
+elfsec.exe rules show
+elfsec.exe kontrol --fail-only
+```
+
+**Exit codes:** `0` = clean / success · `1` = threat reached `--fail-on` threshold · `2` = environment / configuration error.
+
+<details>
+<summary>Layered Config, OAuth2, and Web API (Next.js) Details (EN)</summary>
+
+- **Config precedence:** Environment variables → `--config` / `ELFSEC_CONFIG` → `%APPDATA%\ElfSec\elfsec.env` (or `~/.config/elfsec/elfsec.env`) → `C:\ProgramData\ElfSec\elfsec.env` → `backend\.env`.
+- **Encrypted vault:** User secrets use Windows DPAPI `ENC(...)`, machine/service secrets use `ENCM(...)` (`CRYPTPROTECT_LOCAL_MACHINE`).
+- **OAuth2 (Outlook / Gmail):** Credentials from the Windows Mail app are never extracted; users register their own Azure / Google Desktop Client ID and approve once in the browser (`elfsec.exe config login --provider outlook|gmail`).
+- **Optional Web API (`elfsec serve`):** Stdlib-only HTTP server (`GET /v1/health`, `POST /v1/analyze`, `POST /v1/sanitize`) with fail-closed `ELFSEC_API_TOKEN` auth, 60/min rate limit, 1 MB body cap, and CORS allowlist. Server-side Next.js helpers live in `web/elfsec.js` and `web/route-example.js` (supported on Windows/Linux VPS; unsupported on serverless platforms like Vercel).
+
+</details>
+
+---
+
+### Developer Setup, Tests & SDK
 
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate         # Windows  |  source .venv/bin/activate  (Linux)
+.venv\Scripts\activate          # Windows | source .venv/bin/activate (Linux)
 pip install -r requirements.txt
 
-# Easy setup: type your email, pick the provider from the menu (confirm guess with Enter),
-# the browser opens on the right page, connection is tested instantly
-python -m app.cli config setup            # or: elfsec.exe config setup
-python -m app.cli config test             # test the IMAP connection
+python -m pytest tests -q                 # 194 tests
+python -m app.cli kontrol --fail-only     # 76 self-audits (SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE,WIN)
 ```
 
-> The old-style `.env` file still works (`backend/.env` → see `.env.example`), but the new settings system takes precedence. No config file is ever uploaded to GitHub.
-
-## Settings system (layered config)
-
-Instead of a flat `.env`, prioritized layers + validation + encrypted storage:
-
-| Priority | Source | Use for |
-|---|---|---|
-| 1 (highest) | Environment variables (`IMAP_PASSWORD=...`) | CI / automation |
-| 2 | `--config PATH` / `ELFSEC_CONFIG` | Multiple profiles (home/work) |
-| 3 | `%APPDATA%/ElfSec/elfsec.env` (Win) / `~/.config/elfsec/elfsec.env` | User settings (recommended) |
-| 4 | `backend/.env` | Backwards compatibility |
-
-```bash
-python -m app.cli config setup                                 # easy setup (recommended)
-python -m app.cli config init                                  # classic wizard
-python -m app.cli config show                                  # active settings (passwords masked)
-python -m app.cli config set IMAP_PASSWORD                     # asks secretly, writes encrypted
-python -m app.cli config get IMAP_HOST                         # single value for scripts
-python -m app.cli config path                                  # which file is in use?
-python -m app.cli config test                                  # settings + IMAP connection test
-python -m app.cli --config work.env triage --limit 20          # run with a different profile
-```
-
-- **Password vault:** secrets (`IMAP_PASSWORD`, `OAUTH_REFRESH_*`) are stored as `ENC(...)` encrypted with Windows DPAPI, bound to that user account — cannot be decrypted on another user/PC, no extra dependency.
-- **Turkish validation:** on bad config prints `CONFIG ERROR` + which key + how to fix, exit code 2.
-- Folder/limit strictness: `folder` max 128 + `..` forbidden, `limit` 1-100, `interval` min 1 min.
-
-## Login with OAuth (recommended — no password)
-
-The ready-made mail account on Windows **cannot be silently inherited** (credentials are bound to the Mail app, even admins can't extract them — by design). Instead you approve once in the browser, the refresh token stays in the vault:
-
-**1) Outlook (Hotmail/Outlook/Office365):**
-1. [Azure Portal](https://portal.azure.com) → Microsoft Entra ID → App registrations → New registration (name: `ElfSec`, account type: personal Microsoft accounts, redirect: Public client).
-2. Authentication → Mobile and desktop applications → `http://127.0.0.1` (for MSAL loopback) + "Allow public client flows: Yes".
-3. API permissions → Add → `Office 365 Exchange Online` → Delegated → `IMAP.AccessAsUser.All` + `offline_access` → Grant admin consent **not needed** (personal account).
-4. Overview → copy the **Application (client) ID**.
-
-**2) Gmail:**
-1. [Google Cloud Console](https://console.cloud.google.com) → new project → APIs & Services → Enable **Gmail API**.
-2. OAuth consent screen → External → add your own email as a test user.
-3. Credentials → Create Credentials → OAuth client ID → **Desktop app** → copy the **Client ID**.
-
-**3) Connect to ElfSec:**
-```powershell
-elfsec.exe config login --provider outlook   # or gmail
-# asks for client-id once, browser opens, approve, close
-elfsec.exe config test        # IMAP connection OK
-elfsec.exe config logout      # logout (clears tokens)
-```
-Note: no shared/built-in client-id — everyone creates their own registration (quota and security). OAuth adds no extra dependency (stdlib).
-
-## Usage as a TOOL (terminal)
-
-```bash
-cd backend
-.venv\Scripts\activate
-
-# 1) Health check
-python -m app.cli health
-python -m app.cli health --json
-
-# 2) Fetch and summarize emails
-python -m app.cli fetch --limit 10
-python -m app.cli fetch --limit 5 --unseen --folder INBOX
-python -m app.cli fetch --limit 20 --json --out mails.json
-
-# 3) Analyze a single email (pipe supported)
-python -m app.cli analyze --subject "Your account will be closed!" --sender "x@bank-secure.tk" --body "Click now http://evil.tk/verify"
-cat suspicious.eml | python -m app.cli analyze --stdin --json
-python -m app.cli analyze --body-file suspicious.html --json --out report.json
-
-# 4) File/glob analysis (batch)
-python -m app.cli analyze-file --path mail.html
-python -m app.cli analyze-file --path "samples/*.eml" --fail-on MEDIUM --json
-
-# 5) TRIAGE — analyst workflow: fetch+analyze last N mails, sort by risk
-python -m app.cli triage --limit 50
-python -m app.cli triage --limit 50 --unseen --min-score 25 --top 10
-python -m app.cli triage --limit 100 --fail-on HIGH --out triage.jsonl   # feed into SIEM
-
-# 6) Security audit (penetration checks + versioned roadmap)
-python -m app.cli kontrol --fail-only
-python -m app.cli kontrol --kategori TOOL,IMAP --json --out kontrol.json
-```
-
-### Continuous protection while the PC is on (guard)
-
-`guard` scans unread mail every N minutes while the PC is on, turns HIGH and above into **alarms**, never alarms twice for the same mail (state file), writes alarms to `guard_alerts.jsonl`, optionally POSTs to a webhook:
-
-```bash
-# Start manually (test)
-python -m app.cli guard --unseen --interval 10
-
-# Single run (scheduled task / cron alternative)
-python -m app.cli guard --unseen --once --fail-on HIGH
-
-# With webhook (Discord/Slack/SIEM) — 3 retries + auth header
-python -m app.cli guard --unseen --interval 10 --webhook https://example/webhook \
-  --webhook-header "Authorization: Bearer X"
-
-# PII-masked + old-log-pruned protection
-python -m app.cli guard --unseen --interval 10 --redact --retention-days 30
-
-# Manually quarantine a single mail (toast "Quarantine" button triggers this too)
-python -m app.cli quarantine 123 --folder INBOX
-python -m app.cli quarantine 123 --action delete --yes   # permanent, confirmed
-```
-
-**Autostart — kick in on every boot (no admin needed):**
-
-```powershell
-cd backend
-powershell -ExecutionPolicy Bypass -File scripts\setup_autostart.ps1 -Unseen
-# test:   schtasks /run /tn ElfSecGuard
-# status: schtasks /query /tn ElfSecGuard
-# logs:   backend\guard_alerts.jsonl
-# remove: powershell -ExecutionPolicy Bypass -File scripts\remove_autostart.ps1
-```
-
-Logic: ~1 min after login (so Wi-Fi is up) `guard_start.cmd` starts `guard`, scans in background every 10 min. If IMAP drops, guard doesn't crash — it classifies the error (`config`/`imap`), logs to `guard_errors.jsonl`, sends a single toast after 3 consecutive errors, then continues. A corrupt state file is not deleted, it's backed up to `.corrupt-<date>`. One broken mail never kills the run, it's skipped and counted.
-
-### Exit-code contract (automation/CI gate)
-
-| Code | Meaning |
-|---|---|
-| `0` | Clean / success (risk below `--fail-on` threshold) |
-| `1` | Suspicious — risk reached the threshold (e.g. `--fail-on HIGH` + HIGH found) |
-| `2` | Environment/usage error (no IMAP, no file, connection error, `guard --once` run error, `config test` connection error) |
-
-```bash
-# CI example: stop the pipeline if suspicious mail exists
-python -m app.cli analyze-file --path "incoming/*.eml" --fail-on MEDIUM --quiet
-# or: scan the mailbox every morning with triage, alarm on HIGH
-python -m app.cli triage --limit 50 --unseen --fail-on HIGH --out daily.jsonl
-```
-
-### Usage from a website (API)
-
-Your site fetches the score from here — run the API on your site's server, POST from the browser:
-
-```cmd
-REM on the server (token REQUIRED, refuses to start network-open without token):
-set ELFSEC_API_TOKEN=a-long-random-value
-elfsec.exe serve --host 127.0.0.1 --port 8765 --cors-origins https://mysite.com
-```
-
-```js
-// on the site (browser):
-const r = await fetch("http://127.0.0.1:8765/v1/analyze", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", "Authorization": "Bearer LONG-TOKEN" },
-  body: JSON.stringify({ subject: "Your account will be closed!", sender: "x@bank-secure.tk", body: "Click now http://evil.tk/verify" })
-});
-const report = await r.json(); // { ok, risk_level, risk_score, reasons, ... }
-```
-
-Endpoints: `GET /v1/health` · `POST /v1/analyze` · `POST /v1/sanitize`.
-Security notes: token is read only from environment (never hard-code!),
-default is localhost, rate-limit 60/min, body limit 1MB, mail content is never
-written to logs. In production put it behind HTTPS (reverse proxy).
-
-#### Does it run on a Next.js server?
-
-`web/elfsec.js` (ready client, zero deps) + `web/route-example.js` (sample API Route) included.
-Check your environment first — honest table:
-
-| Environment | Works? | How |
-|---|---|---|
-| Own VPS (Windows) | ✅ | Drop `elfsec.exe serve`, call it with `fetch` from your Next.js route |
-| Own VPS (Linux) | ✅ | `elfsec.exe` does NOT work (Windows binary) — run from Python source: `pip install -r backend/requirements.txt` then `python -m app.cli serve`. Analysis path runs purely on Linux (no Windows-only imports) |
-| Vercel / serverless | ❌ | Long-lived process forbidden + exe won't run — host the API on a separate server and connect via URL |
-
-Rule: the browser never talks to ElfSec directly. Use `elfsec.js` **only server-side** (API Route / Server Action),
-token stays in `process.env.ELFSEC_API_TOKEN` (NEVER put it in a `NEXT_PUBLIC_` variable).
-Verified end-to-end: Node client → Python API → score (v1.2.0).
-
-### SDK for developers (importable core)
-
-Same pipeline as the CLI, single call from code:
-
+Python SDK:
 ```python
 from app.sdk import scan_text, scan_file, sanitize
 
-report = scan_text(subject="Invoice", body="<p>Pay the debt http://x.tk/o</p>", sender="a@b.com")
+report = scan_text(subject="Invoice", body="<p>Pay now http://evil.tk/o</p>", sender="a@b.com")
 print(report["risk_level"], report["risk_score"], report["reasons"])
-
-clean = sanitize("<script>x</script><p>hello</p>")  # no AI, fast: safe_html + plain_text + urls
 ```
 
-### Tests (developer-focused)
+---
 
-```bash
-cd backend
-.venv\Scripts\activate
-python -m pytest tests -q        # 161 tests: sanitizer, engine, TOOL CLI/guard/settings/kontrol/headers/oauth/ops/serve
-python -m app.cli kontrol --fail-only   # 66 penetration checks (SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE)
-```
+### Project Structure
 
-### Enterprise usage (v0.6.0)
-
-```bash
-# Engine rules (tune weights on/off, reset to defaults)
-python -m app.cli rules show
-python -m app.cli rules set urgency 40
-python -m app.cli rules disable url_keyword
-python -m app.cli rules reset
-
-# CEF stream to SIEM
-python -m app.cli triage --limit 50 --cef daily.cef
-python -m app.cli guard --unseen --interval 10 --cef-log alarms.cef
-
-# Update check
-python -m app.cli update --check
-# Installer package: installer\elfsec.iss (Inno Setup) builds ElfSecSetup.exe
-```
-
-Contribution flow: write test → `pytest` green → PR. Any change loosening the sanitizer layer must break tests — by design.
-
-**Sample output:**
-```
-[XXX] RISK 80/100 [CRITICAL] (engine: elfsec-local/1.0)
-Summary: Local analysis: 4 findings, score 80/100.
-Reasons:
-  - Phishing pattern: urgency + account/closure/verification pressure.
-  - URL with suspicious TLD: http://evil.tk/verify
-  - Sender spoof: corporate identity + free mail domain (gmail.com).
-Phishing: True | Prompt-injection: False
-Tracking-pixel blocks: 0
-Recommendation: Don't click links, don't open attachments, verify the sender via an official channel.
-```
-
-## Usage as KONTROL (penetration tests)
-
-```bash
-python -m app.cli kontrol --fail-only
-python -m app.cli kontrol --kategori TOOL,IMAP --fail-on LOW
-```
-
-Categories: `SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS`. Results are FAIL-first + optimized in version order.
-Exit: `0` clean, `1` issue found, `2` error.
-
-## Project structure
-
-```
+```text
+extension/                   # Manifest V3 browser extension (Gmail, Outlook Web, Yahoo, Yandex, iCloud, Proton)
+  manifest.json              # Pinned public key (ID: jkmbfppdffpiodlmikbdfdihdkejcfjj) + Firefox Gecko ID
+  background.js              # Native Messaging bridge + context menus + badge updates
+  content.js / banner.css    # Webmail DOM extraction + live risk banner + link click guard
+  fallback_analyzer.js       # Offline browser fallback engine
+  popup.html / popup.js      # Extension status, toggle, quick scanner, recent alerts
 backend/
   app/
-    cli.py               # TOOL interface (health/fetch/analyze/triage/guard/config/kontrol) + exit-code
-    kontrol.py           # versioned audit + penetration tests (TOOL-only)
-    notify.py            # Windows Toast (no extra dependency)
-    tray.py              # single-exe background (console hide + tray)
-    sdk.py               # importable core (scan_text/scan_file/sanitize)
-    config.py            # settings schema (pydantic, TOOL-only)
-    settings_store.py    # layered config + Turkish validation
-    secret_vault.py      # DPAPI encrypted storage (ENC...)
-    schemas.py           # TOOL input validation (pydantic)
+    cli.py                   # CLI entry points + protocol & browser native-host routing
+    native_host.py           # Chrome/Edge/Brave/Firefox stdio JSON-framing host
+    win_service.py           # Native Win32 SCM service (ElfSecGuard) + ServiceRunner
+    win_plugin.py            # Registry (Explorer/Protocol/Run/Browsers) + AlertBridge + agent
+    tray.py                  # Pure ctypes Win32 System Tray icon & menu
+    notify.py                # Windows Toast notifications (email / file / clipboard)
+    kontrol.py               # 76 security self-audits (SURUM,TEMIZLE,ANALIZ,TOOL,IMAP,OPS,SERVE,WIN)
     services/
-      imap_client.py     # imap-tools + quarantine (in thread)
-      sanitizer.py       # bleach + bs4/lxml
-      ai_analyzer.py     # local engine (keyless, deterministic)
-  tests/                 # pytest: sanitizer + local engine + TOOL CLI/guard/settings/kontrol contract
-  elfsec.py              # single-exe entry point (PyInstaller, guard --tray hides)
-  scripts/               # build_exe / setup_autostart / remove_autostart
-  requirements.txt  .env.example
-.github/workflows/release.yml  # builds single elfsec.exe on v* tag and uploads to Releases
+      file_scanner.py        # Offline PE magic, RLO, MotW, LOLBin, .eml/.html & .quarantined vault
+      ai_analyzer.py         # Deterministic local phishing/prompt-injection engine
+      sanitizer.py           # Bleach + BeautifulSoup/lxml HTML sanitizer
+      imap_client.py         # Async-threaded IMAP client & quarantine
+    watchers/
+      file_watcher.py        # Downloads + Outlook/Windows Mail cache watcher
+      clipboard_guard.py     # ClickFix & phishing clipboard guard
+  scripts/                   # install_windows_plugin.ps1 / uninstall_windows_plugin.ps1 / build_exe.ps1
+  tests/                     # 194 pytest unit & integration tests
+installer/elfsec.iss         # Inno Setup Admin installer (ElfSecSetup.exe)
+.github/workflows/           # ci.yml (pytest/coverage/kontrol/ruff/pip-audit) & release.yml (elfsec.exe)
 ```
 
-## Security notes
+### Security Notes
 
-- For Gmail use an **app password**, not your normal password.
-- ElfSec deliberately uses **no API keys**: analysis is local, email content never leaves the device. No server/frontend/Docker.
-- **Log privacy:** `triage --out` and `guard_alerts.jsonl` contain mail summaries — don't share these files, pass `--webhook` only to a trusted `https://` address (`http` is skipped).
-- **Dependencies:** versions pinned in `requirements.txt` (serverless, 8 packages); `pip-audit` clean, CI runs tests + audit on every push, Dependabot opens weekly security updates.
+- **Zero API keys / local-only:** Email bodies, attachments, and clipboard content never leave your PC.
+- **Log privacy:** `guard_alerts.jsonl` and `triage --out` may contain email/file summaries; use `--redact` to mask PII (emails, IBAN, national IDs, card numbers) and `--retention-days` to prune old logs. Use `--webhook` only with trusted `https://` endpoints.
+- **Dependencies:** Pinned to 8 core packages in [backend/requirements.txt](file:///C:/Users/BYE/Desktop/ElfSec/backend/requirements.txt); checked with `pip-audit`, `ruff`, and Dependabot.
