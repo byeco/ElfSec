@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ElfSec Güvenlik Eklentisi",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Gmail, Outlook Web, Yahoo, Yandex, iCloud ve Proton Mail için yerel phishing, sahte gönderici ve ClickFix koruması.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlv1uyGqqLdCcFb4CZHbjYl/QVBSr9QhA18qMIJK5KDM1F404eFLS2WrBcZpxwFxQudsO1/OSLpO1qVl9ypdAAv71PVhnboM4WE01FjjDY5amtZg94d3D2FLfRXtBT9DM/VflqALRJCFT4EYUmzdGFrx3Qwfxy+M6sK77dfiIGU/vtPRS5+Qb8a9e/I+FAU2ys/oqpPQVRi3tz1S2wFHVEiiMQ1Ta23ehl88ysTWT9c7bzH2Gn/iKsVmZM2Qrj7dS9rrtMqA0GDoDnpqmlZGzaFiU1jywbxBzAR3fWT7tGLZAoBmd6MLxBiVslUxxmEatZAMc8yAJPXhJunbHZdTgEQIDAQAB",
   "browser_specific_settings": {

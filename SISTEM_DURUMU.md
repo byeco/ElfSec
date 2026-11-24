@@ -1,4 +1,4 @@
-# ElfSec Sistem Durum Çizelgesi (baz: v1.4.1)
+# ElfSec Sistem Durum Çizelgesi (baz: v1.5.0)
 
 > Tek exe: `elfsec.exe` (CLI + guard + web API). Web API opt-in'dir,
 > varsayılan localhost + stdlib-only (ek bağımlılık yok).
@@ -135,6 +135,14 @@
 | 54 | Artımlı senkron (`UIDVALIDITY` + son UID takibi, sadece yeni mailler) | [ ] |
 | 55 | Toplu fetch (`bulk`) + tur başına süre metriği (`--profile`) | [ ] |
 | 56 | Kural paketi güncellemesi (`update --rules` ile imzalı rules.json) | [ ] |
+
+### v1.5.0 — Doğrulanmış Resmi Marka Göndericileri [x]
+
+| # | İş | Dosya | Durum |
+|---|---|---|---|
+| 74 | Resmi marka gönderici kayıt defteri (Apple, Google, Microsoft, bankalar, e-Devlet + `verified_senders.json`) | `verified_senders.py`, `rules.py` | [x] |
+| 75 | `local_analyze` & tarayıcı eklentisi doğrulama rozeti (`VERIFIED_STRONG`/`IMPERSONATION`/`SPOOFED`) | `ai_analyzer.py`, `extension/` | [x] |
+| 76 | CLI `verified list/check/add/remove/reset` + KONTROL `VER-01..03` + `tests/test_verified_senders.py` | `cli.py`, `kontrol.py`, `tests/` | [x] |
 
 ### v1.4.0 — Tarayıcı Webmail + Masaüstü Mail Uygulamaları [x]
 

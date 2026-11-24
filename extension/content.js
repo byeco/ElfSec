@@ -130,6 +130,17 @@
     });
 
     header.appendChild(badge);
+    const sv = report.sender_verification || {};
+    if (sv.status && sv.status !== "UNKNOWN") {
+      const svPill = document.createElement("span");
+      const isBad = sv.status === "IMPERSONATION" || sv.status === "SPOOFED";
+      svPill.className = `elfsec-verify-pill ${isBad ? "elfsec-verify-bad" : "elfsec-verify-ok"}`;
+      svPill.textContent = isBad
+        ? `⚠ Doğrulanmamış / Taklit: ${sv.brand || "Marka"}`
+        : `✓ Doğrulanmış: ${sv.brand || "Resmi"}`;
+      svPill.title = sv.detail || "";
+      header.appendChild(svPill);
+    }
     header.appendChild(meta);
     header.appendChild(btn);
     banner.appendChild(header);

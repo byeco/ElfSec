@@ -20,7 +20,7 @@ if ($LASTEXITCODE -ne 0) { throw "pyinstaller kurulamadı" }
   --hidden-import imap_tools --hidden-import bleach --hidden-import lxml `
   --hidden-import pydantic_settings --hidden-import app.win_service `
   --hidden-import app.win_plugin --hidden-import app.native_host `
-  --hidden-import app.services.file_scanner `
+  --hidden-import app.verified_senders --hidden-import app.services.file_scanner `
   --hidden-import app.watchers.file_watcher --hidden-import app.watchers.clipboard_guard `
   elfsec.py
 if ($LASTEXITCODE -ne 0) { throw "build başarısız (exit=$LASTEXITCODE)" }

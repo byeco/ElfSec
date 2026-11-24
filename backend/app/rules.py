@@ -47,6 +47,8 @@ DEFAULT_RULES: dict[str, dict] = {
     "file_magic_mismatch": {"weight": 50, "enabled": True},
     "script_lolbin": {"weight": 35, "enabled": True},
     "clipboard_clickfix": {"weight": 40, "enabled": True},
+    "unverified_brand_sender": {"weight": 30, "enabled": True},
+    "verified_spoof_attempt": {"weight": 30, "enabled": True},
 }
 
 _CACHE: dict = {"mtime": 0.0, "rules": {}}

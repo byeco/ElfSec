@@ -236,9 +236,9 @@ def _headers_score(headers: dict | None, sender: str, R: dict | None = None) -> 
                 score += w
                 reasons.append(f"Kimlik doğrulama şüpheli: {mech.upper()} zayıf sonuç.")
 
-    # 2) Reply-To ≠ From (yanıt farklı adrese gider — klasik olta)
+    # 2) Reply-To ≠ From (yanıt farklı kök alan adına gider — klasik olta)
     rt = _dom(str(headers.get("reply_to", "") or ""))
-    if rt and from_dom and rt != from_dom:
+    if rt and from_dom and _root(rt) != from_root:
         if (w := _W(R, "reply_to", 20)):
             score += w
             reasons.append(f"Yanıt adresi farklı: From {from_dom} ama Reply-To {rt}.")
@@ -332,6 +332,7 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
             reasons.append("Şüpheli ek/indirilebilir dosya tuzağı.")
 
     # v0.4.0: başlık doğrulaması (eksik başlık ceza almaz, çelişki puanlanır)
+    hscore = 0
     try:
         hscore, hreasons = _headers_score(headers, sender, rules)
         score += hscore
@@ -340,6 +341,7 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
         pass
 
     # v0.5.0: ek analizi (üstveri)
+    ascore = 0
     try:
         ascore, areasons = _attachments_score(attachments, rules)
         score += ascore
@@ -347,8 +349,41 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
     except Exception:
         pass
 
+    # v1.5.0: doğrulanmış resmi marka göndericisi & taklit motoru
+    sender_verification = {"status": "UNKNOWN", "brand": "", "detail": ""}
+    try:
+        from app.verified_senders import verify_sender
+
+        sender_verification = verify_sender(sender, subject, plain_text, headers)
+        sv_status = sender_verification.get("status", "UNKNOWN")
+        if sv_status == "SPOOFED":
+            if (w := _W(rules, "verified_spoof_attempt", 30)):
+                score += w
+                reasons.append(sender_verification["detail"])
+        elif sv_status == "IMPERSONATION":
+            if not any("Marka taklidi" in r for r in reasons):
+                if (w := _W(rules, "unverified_brand_sender", 30)):
+                    score += w
+                    reasons.append(sender_verification["detail"])
+        elif sv_status in ("VERIFIED_STRONG", "VERIFIED_DOMAIN"):
+            clean_signals = (
+                not sus_urls
+                and ascore == 0
+                and hscore == 0
+                and not any("Prompt injection" in r for r in reasons)
+            )
+            if clean_signals and score > 0:
+                if sv_status == "VERIFIED_STRONG":
+                    discount = 35 if sender_verification.get("exact_official_address") else 25
+                else:
+                    discount = 20 if sender_verification.get("exact_official_address") else 10
+                score = max(0, score - discount)
+    except Exception:
+        pass
+
     score = max(0, min(100, score))
     level = "LOW" if score < 25 else "MEDIUM" if score < 50 else "HIGH" if score < 75 else "CRITICAL"
+    sv_stat = sender_verification.get("status", "UNKNOWN")
     return {
         "risk_score": score,
         "risk_level": level,
@@ -356,7 +391,11 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
         "reasons": reasons or ["Bilinen oltalama / injection kalıbı eşleşmedi."],
         "suspicious_urls": sus_urls,
         "prompt_injection_detected": any("Prompt injection" in r for r in reasons),
-        "phishing_detected": any(("Oltalama" in r or "taklidi" in r or "Hassas bilgi" in r) for r in reasons),
+        "phishing_detected": (
+            sv_stat in ("IMPERSONATION", "SPOOFED")
+            or any(("Oltalama" in r or "taklidi" in r or "Hassas bilgi" in r or "Doğrulanmamış marka" in r) for r in reasons)
+        ),
+        "sender_verification": sender_verification,
         "recommended_action": (
             "Bağlantılara tıklama, eki açma, göndericiyi resmi kanaldan doğrula."
             if score >= 50 else "Şüpheli bir durum yok, normal dikkat yeterli."

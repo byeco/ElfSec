@@ -50,6 +50,93 @@
   var RISKY_EXT = [".exe", ".zip", ".rar", ".scr", ".js", ".vbs", ".bat", ".ps1", ".msi", ".jar", ".iso", ".lnk"];
   var DOC_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".png", ".txt"];
 
+  var VERIFIED_BRANDS = [
+    {
+      id: "apple", label: "Apple",
+      aliases: ["apple", "apple id", "icloud", "app store", "itunes"],
+      domains: ["apple.com", "email.apple.com", "id.apple.com", "insideicloud.icloud.com", "icloud.com"],
+      emails: ["no_reply@email.apple.com", "noreply@email.apple.com", "appleid@id.apple.com", "do_not_reply@apple.com", "noreply@insideicloud.icloud.com", "apple_support@apple.com"]
+    },
+    {
+      id: "google", label: "Google",
+      aliases: ["google", "gmail", "google play", "youtube"],
+      domains: ["google.com", "accounts.google.com", "youtube.com"],
+      emails: ["no-reply@accounts.google.com", "security-noreply@google.com", "noreply@google.com"]
+    },
+    {
+      id: "microsoft", label: "Microsoft",
+      aliases: ["microsoft", "outlook", "office 365", "onedrive", "xbox"],
+      domains: ["microsoft.com", "accountprotection.microsoft.com", "email.microsoft.com", "communication.microsoft.com"],
+      emails: ["account-security-noreply@accountprotection.microsoft.com", "msa@communication.microsoft.com", "noreply@microsoft.com"]
+    },
+    { id: "paypal", label: "PayPal", aliases: ["paypal"], domains: ["paypal.com", "mail.paypal.com"], emails: ["service@paypal.com", "paypal@mail.paypal.com"] },
+    { id: "amazon", label: "Amazon", aliases: ["amazon", "amazon prime"], domains: ["amazon.com", "amazon.com.tr"], emails: ["no-reply@amazon.com", "auto-confirm@amazon.com"] },
+    { id: "netflix", label: "Netflix", aliases: ["netflix"], domains: ["netflix.com", "mailer.netflix.com", "account.netflix.com"], emails: ["info@account.netflix.com"] },
+    { id: "meta", label: "Meta / Instagram", aliases: ["instagram", "facebook", "whatsapp", "meta"], domains: ["mail.instagram.com", "facebookmail.com", "whatsapp.com", "meta.com"], emails: ["security@mail.instagram.com", "security@facebookmail.com"] },
+    { id: "github", label: "GitHub", aliases: ["github"], domains: ["github.com"], emails: ["noreply@github.com"] },
+    { id: "steam", label: "Steam", aliases: ["steam", "steampowered"], domains: ["steampowered.com"], emails: ["noreply@steampowered.com"] },
+    { id: "discord", label: "Discord", aliases: ["discord"], domains: ["discord.com", "discordapp.com"], emails: ["noreply@discord.com"] },
+    { id: "edevlet", label: "e-Devlet", aliases: ["e-devlet", "edevlet", "turkiye.gov"], domains: ["turkiye.gov.tr"], emails: ["bilgilendirme@turkiye.gov.tr"] },
+    { id: "garanti", label: "Garanti BBVA", aliases: ["garanti", "garanti bbva"], domains: ["garanti.com.tr", "garantibbva.com.tr"], emails: ["bilgilendirme@garantibbva.com.tr"] },
+    { id: "akbank", label: "Akbank", aliases: ["akbank"], domains: ["akbank.com"], emails: ["bilgilendirme@akbank.com"] },
+    { id: "ziraat", label: "Ziraat Bankası", aliases: ["ziraat", "ziraat bank"], domains: ["ziraatbank.com.tr"], emails: ["bilgilendirme@ziraatbank.com.tr"] },
+    { id: "isbank", label: "İş Bankası", aliases: ["isbank", "işbank", "iş bankası", "is bankasi"], domains: ["isbank.com.tr"], emails: ["bilgilendirme@isbank.com.tr"] },
+    { id: "yapikredi", label: "Yapı Kredi", aliases: ["yapikredi", "yapıkredi", "yapı kredi"], domains: ["yapikredi.com.tr"], emails: ["bilgilendirme@yapikredi.com.tr"] },
+    { id: "ptt", label: "PTT", aliases: ["ptt", "ptt kargo"], domains: ["ptt.gov.tr", "pttavm.com"], emails: ["bilgi@ptt.gov.tr"] },
+    { id: "trendyol", label: "Trendyol", aliases: ["trendyol"], domains: ["trendyol.com", "mail.trendyol.com"], emails: ["no-reply@trendyol.com"] },
+    { id: "hepsiburada", label: "Hepsiburada", aliases: ["hepsiburada"], domains: ["hepsiburada.com"], emails: ["no-reply@hepsiburada.com"] }
+  ];
+
+  function domainMatches(dom, officialList) {
+    if (!dom) return false;
+    return officialList.some(function (od) {
+      return dom === od || dom.endsWith("." + od);
+    });
+  }
+
+  function verifySender(sender, subject) {
+    var raw = String(sender || "");
+    var m = raw.match(/([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})/);
+    var addr = m ? m[1].toLowerCase() : "";
+    var dom = addr.indexOf("@") !== -1 ? addr.split("@")[1] : "";
+    var disp = m ? (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).toLowerCase() : raw.toLowerCase();
+    var subj = String(subject || "").toLowerCase();
+
+    for (var i = 0; i < VERIFIED_BRANDS.length; i++) {
+      var b = VERIFIED_BRANDS[i];
+      var exact = addr && b.emails.indexOf(addr) !== -1;
+      if (exact || domainMatches(dom, b.domains)) {
+        return {
+          status: "VERIFIED_DOMAIN",
+          brand: b.label,
+          matched_address: addr,
+          exact_official_address: exact,
+          detail: "Bilinen resmi '" + b.label + "' adresi/alan adı eşleşti (" + (addr || dom) + ")."
+        };
+      }
+    }
+
+    if (dom) {
+      for (var j = 0; j < VERIFIED_BRANDS.length; j++) {
+        var b2 = VERIFIED_BRANDS[j];
+        var claimed = b2.aliases.some(function (a) {
+          var compact = a.replace(/\s+/g, "");
+          return disp.indexOf(a) !== -1 || subj.indexOf(a) !== -1 || (compact.length >= 4 && dom.indexOf(compact) !== -1);
+        });
+        if (claimed) {
+          return {
+            status: "IMPERSONATION",
+            brand: b2.label,
+            matched_address: addr,
+            exact_official_address: false,
+            detail: "Doğrulanmamış marka göndericisi: '" + b2.label + "' adına geliyor ancak resmi alan adı (" + b2.domains[0] + ") değil (" + dom + ")!"
+          };
+        }
+      }
+    }
+    return { status: "UNKNOWN", brand: "", matched_address: addr, exact_official_address: false, detail: "" };
+  }
+
   function extractUrls(text) {
     var re = /https?:\/\/[^\s<>'"]+/gi;
     var found = [];
@@ -198,6 +285,15 @@
       }
     });
 
+    var sv = verifySender(sender, subject);
+    if (sv.status === "IMPERSONATION") {
+      score += 30;
+      reasons.push(sv.detail);
+      phishing = true;
+    } else if (sv.status === "VERIFIED_DOMAIN" && susUrls.length === 0 && !promptInj && score > 0) {
+      score = Math.max(0, score - (sv.exact_official_address ? 20 : 10));
+    }
+
     score = Math.max(0, Math.min(100, score));
     var level = levelFromScore(score);
     return {
@@ -213,6 +309,7 @@
       suspicious_urls: susUrls,
       phishing_detected: phishing,
       prompt_injection_detected: promptInj,
+      sender_verification: sv,
       recommended_action: score >= 50
         ? "Bağlantılara tıklamayın, ekleri açmayın, göndericiyi resmi kanaldan doğrulayın."
         : "Şüpheli bir durum yok, normal dikkat yeterli."
@@ -259,6 +356,7 @@
   var api = {
     analyzeEmail: analyzeEmail,
     analyzeText: analyzeText,
+    verifySender: verifySender,
     extractUrls: extractUrls,
     checkUrl: checkUrl
   };

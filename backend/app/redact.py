@@ -54,6 +54,15 @@ def redact_report(report: dict) -> dict:
         r["plain_text"] = mask_secrets(mask_email(str(r["plain_text"])[:2000]))
     if r.get("snippet"):
         r["snippet"] = mask_secrets(mask_email(str(r["snippet"])[:300]))
+    if isinstance(r.get("sender_verification"), dict):
+        sv = dict(r["sender_verification"])
+        if sv.get("matched_address"):
+            sv["matched_address"] = mask_email(str(sv["matched_address"]))
+        if sv.get("detail"):
+            sv["detail"] = mask_email(str(sv["detail"]))
+        r["sender_verification"] = sv
+    if isinstance(r.get("reasons"), list):
+        r["reasons"] = [mask_secrets(mask_email(str(x))) for x in r["reasons"]]
     return r
 
 

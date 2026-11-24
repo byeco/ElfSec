@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.5.0 — Doğrulanmış Resmi Marka Göndericileri & Anti-Taklit Motoru
+
+- **Yeni `app/verified_senders.py`:** Apple (`no_reply@email.apple.com`, `appleid@id.apple.com`, `email.apple.com`, `id.apple.com`, `insideicloud.icloud.com` vb.), Google, Microsoft, PayPal, Amazon, Netflix, Meta/Instagram, GitHub, Steam, Discord, e-Devlet, Garanti BBVA, Akbank, Ziraat, İş Bankası, Yapı Kredi, PTT, Trendyol, Hepsiburada, Turkcell, Türk Telekom ve Vodafone için resmi alan adı ve bilinen ulaşılabilir adres kayıt defteri (`verified_senders.json` ile genişletilebilir).
+- **Motor entegrasyonu (`ai_analyzer.py` + `rules.py`):**
+  - Resmi adres + `SPF/DKIM/DMARC=pass` → `VERIFIED_STRONG` (yanlış pozitif kelime puanını yumuşatır; ancak zararlı URL veya ek varsa güven indirimi asla uygulanmaz).
+  - Resmi adres + `SPF/DKIM/DMARC=fail` veya `Reply-To` uyuşmazlığı → `SPOOFED` (+30 `verified_spoof_attempt`).
+  - Sahte marka alan adı (örn. `apple-id-verify.com`) → başlıksız bile `IMPERSONATION` (+30 `unverified_brand_sender`).
+- **Tarayıcı eklentisi (`extension/`):** `fallback_analyzer.js` ve `content.js` içinde açılan e-posta şeridinde `✓ Doğrulanmış: Apple` veya `⚠ Doğrulanmamış / Taklit: Apple` rozeti.
+- **CLI & KONTROL:** `elfsec verified list|check|add|remove|reset` komutları + `VER-01`, `VER-02`, `VER-03` denetimleri.
+
 ## v1.4.1 — CI/Linux izolasyonu + Release yetkisi
 
 - `settings_store.machine_data_dir()` artık `ELFSEC_CONFIG_DIR` geçersiz kılmasına uyuyor; `ServiceRunner` yazma izni olmayan sistem dizininde kullanıcı dizinine düşüyor (Linux CI uyumu).

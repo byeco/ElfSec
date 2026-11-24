@@ -218,6 +218,51 @@ def _check_analiz() -> list[dict]:
                           "v0.4.0", "analyze/analyze-file --header desteklemeli."))
     except Exception as e:
         out.append(_bulgu("HDR-00", "ANALIZ", "Başlık testleri", "FAIL", f"crash: {e}", "v0.4.0", "İzole çalışmalı."))
+    # v1.5.0 doğrulanmış resmi marka göndericisi & taklit kontrolleri
+    try:
+        r_ok = local_analyze(
+            "Apple ID güvenlik bildirimi",
+            "Apple ID şifreniz güncellendi.",
+            [],
+            "Apple <appleid@id.apple.com>",
+            {"reply_to": "no_reply@email.apple.com", "return_path": "",
+             "auth_results": "mx; spf=pass dkim=pass dmarc=pass", "message_id": ""},
+        )
+        sv_ok = r_ok.get("sender_verification", {})
+        out.append(_bulgu("VER-01", "ANALIZ", "Resmi Apple gönderici doğrulaması",
+                          "PASS" if sv_ok.get("status") == "VERIFIED_STRONG" and r_ok["risk_level"] == "LOW" else "FAIL",
+                          f"status={sv_ok.get('status')} skor={r_ok['risk_score']}",
+                          "v1.5.0", "Resmi Apple adresi + SPF/DKIM/DMARC=pass VERIFIED_STRONG olmalı."))
+
+        r_imp = local_analyze(
+            "Apple ID Verify",
+            "Hesabınızı doğrulayın.",
+            [],
+            "Apple Support <security@apple-id-verify.com>",
+            None,
+        )
+        sv_imp = r_imp.get("sender_verification", {})
+        ok_imp = sv_imp.get("status") == "IMPERSONATION" and r_imp["phishing_detected"] and r_imp["risk_score"] >= 30
+        out.append(_bulgu("VER-02", "ANALIZ", "Sahte Apple alan adı tespiti",
+                          "PASS" if ok_imp else "FAIL",
+                          f"status={sv_imp.get('status')} skor={r_imp['risk_score']}",
+                          "v1.5.0", "Sahte Apple alan adı başlıksız da IMPERSONATION yakalamalı."))
+
+        r_spf = local_analyze(
+            "Apple ID",
+            "Bilgilendirme",
+            [],
+            "Apple <appleid@id.apple.com>",
+            {"reply_to": "", "return_path": "", "auth_results": "mx; spf=fail dkim=fail", "message_id": ""},
+        )
+        sv_spf = r_spf.get("sender_verification", {})
+        ok_spf = sv_spf.get("status") == "SPOOFED" and r_spf["risk_score"] >= 50
+        out.append(_bulgu("VER-03", "ANALIZ", "Taklit edilmiş resmi Apple adresi (SPF/DKIM fail)",
+                          "PASS" if ok_spf else "FAIL",
+                          f"status={sv_spf.get('status')} skor={r_spf['risk_score']}",
+                          "v1.5.0", "SPF/DKIM fail varsa resmi adres asla doğrulanmamalı."))
+    except Exception as e:
+        out.append(_bulgu("VER-00", "ANALIZ", "Doğrulanmış gönderici testleri", "FAIL", f"crash: {e}", "v1.5.0", "İzole çalışmalı."))
     return out
 
 

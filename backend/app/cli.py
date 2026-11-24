@@ -70,6 +70,9 @@ def _print_report(result: dict, tracking: int, quiet: bool = False) -> None:
         print(f"  ! {u}")
     print(f"Phishing: {result.get('phishing_detected')} | Prompt-injection: {result.get('prompt_injection_detected')} | "
           f"takip-piksel: {tracking}")
+    sv = result.get("sender_verification") or {}
+    if sv.get("status") and sv.get("status") != "UNKNOWN":
+        print(f"Gönderici doğrulama: [{sv['status']}] {sv.get('detail', '')}")
     print(f"Öneri: {result.get('recommended_action')}")
 
 
@@ -1306,6 +1309,81 @@ def cmd_browser(args: argparse.Namespace) -> int:
     return 2
 
 
+def cmd_verified(args: argparse.Namespace) -> int:
+    """Doğrulanmış resmi marka göndericileri yönetimi ve gönderici doğrulama testi."""
+    from app.verified_senders import (
+        add_verified_sender,
+        load_verified_senders,
+        remove_verified_sender,
+        reset_verified_senders,
+        verified_path,
+        verify_sender,
+    )
+
+    op = args.verified_action
+    if op == "list":
+        reg = load_verified_senders()
+        if getattr(args, "json", False):
+            emit(reg, args)
+        else:
+            from app.table import render, use_table
+
+            rows = [
+                [bid, info.get("label", ""), ", ".join(info.get("domains", [])[:3]),
+                 ", ".join(info.get("emails", [])[:2])]
+                for bid, info in sorted(reg.items())
+            ]
+            if use_table(args):
+                print(render(["ID", "Marka", "Resmi Alan Adları", "Bilinen Adresler"], rows,
+                             title=f"DOĞRULANMIŞ GÖNDERİCİLER ({len(rows)})"))
+            else:
+                for bid, lbl, doms, ems in rows:
+                    print(f"{bid:14s} | {lbl:18s} | {doms} | {ems}")
+            print(f"(kaynak: {verified_path()})")
+        return 0
+    if op == "check":
+        hdrs = {
+            "auth_results": getattr(args, "auth_results", "") or "",
+            "reply_to": getattr(args, "reply_to", "") or "",
+            "return_path": "",
+            "message_id": "",
+        }
+        res = verify_sender(
+            getattr(args, "sender", ""),
+            subject=getattr(args, "subject", "") or "",
+            headers=hdrs if (hdrs["auth_results"] or hdrs["reply_to"]) else None,
+        )
+        if getattr(args, "json", False):
+            emit(res, args)
+        else:
+            print(f"[{res['status']}] Marka: {res.get('brand') or '-'} | {res.get('detail') or 'Kayıtlı marka eşleşmedi.'}")
+        return 1 if res["status"] in ("IMPERSONATION", "SPOOFED") else 0
+    if op == "add":
+        try:
+            p = add_verified_sender(
+                args.brand_id,
+                domains=getattr(args, "domain", []) or [],
+                emails=getattr(args, "email", []) or [],
+                label=getattr(args, "label", "") or "",
+                aliases=getattr(args, "alias", []) or [],
+            )
+            print(f"OK: {args.brand_id} kaydedildi -> {p}")
+            return 0
+        except ValueError as e:
+            print(f"HATA: {e}", file=sys.stderr)
+            return 2
+    if op == "remove":
+        ok = remove_verified_sender(args.brand_id)
+        print(f"OK: {args.brand_id} kaldırıldı." if ok else f"HATA: bulunamadı: {args.brand_id}",
+              file=sys.stdout if ok else sys.stderr)
+        return 0 if ok else 2
+    if op == "reset":
+        p = reset_verified_senders()
+        print(f"OK: doğrulanmış gönderici listesi varsayılana döndü ({p}).")
+        return 0
+    return 2
+
+
 # ---------- parser ----------
 
 def _add_common(p: argparse.ArgumentParser, with_fail: bool = False) -> None:
@@ -1969,6 +2047,32 @@ def build_parser() -> argparse.ArgumentParser:
     br_s.add_argument("--json", action="store_true")
     br_s.add_argument("--out", default="")
     br_s.set_defaults(func=cmd_browser)
+
+    vf = sub.add_parser("verified", help="Doğrulanmış resmi marka göndericileri yönetimi")
+    vfsub = vf.add_subparsers(dest="verified_action", required=True)
+    vf_l = vfsub.add_parser("list", help="Kayıtlı resmi marka alan adlarını ve adreslerini listele")
+    vf_l.add_argument("--json", action="store_true")
+    vf_l.add_argument("--out", default="")
+    vf_l.set_defaults(func=cmd_verified)
+    vf_c = vfsub.add_parser("check", help="Bir gönderici adresini doğrula")
+    vf_c.add_argument("sender", help="Örn: 'Apple <no_reply@email.apple.com>'")
+    vf_c.add_argument("--subject", default="")
+    vf_c.add_argument("--auth-results", default="")
+    vf_c.add_argument("--reply-to", default="")
+    vf_c.add_argument("--json", action="store_true")
+    vf_c.add_argument("--out", default="")
+    vf_c.set_defaults(func=cmd_verified)
+    vf_a = vfsub.add_parser("add", help="Özel doğrulanmış marka/kurum ekle")
+    vf_a.add_argument("brand_id")
+    vf_a.add_argument("--domain", action="append", default=[])
+    vf_a.add_argument("--email", action="append", default=[])
+    vf_a.add_argument("--label", default="")
+    vf_a.add_argument("--alias", action="append", default=[])
+    vf_a.set_defaults(func=cmd_verified)
+    vf_r = vfsub.add_parser("remove", help="Markayı listeden çıkar")
+    vf_r.add_argument("brand_id")
+    vf_r.set_defaults(func=cmd_verified)
+    vfsub.add_parser("reset", help="Varsayılan listeye sıfırla").set_defaults(func=cmd_verified)
     return p
 
 
