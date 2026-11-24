@@ -2,82 +2,303 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
+  <meta name="color-scheme" content="light dark" />
   <title>ElfSec Eklenti Ayarları</title>
   <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #f8fafc;
+      --text: #0f172a;
+      --muted: #5b6b82;
+      --border: #dbe3ee;
+      --brand: #059669;
+      --brand-strong: #047857;
+      --brand-soft: #ecfdf5;
+      --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+      --focus: 0 0 0 3px rgba(5, 150, 105, 0.28);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --panel: #111c31;
+        --panel-2: #0f172a;
+        --text: #e8eefc;
+        --muted: #9fb0c7;
+        --border: #24344f;
+        --brand: #34d399;
+        --brand-strong: #10b981;
+        --brand-soft: rgba(16, 185, 129, 0.14);
+        --danger: #f87171;
+        --shadow: 0 12px 36px rgba(2, 6, 23, 0.5);
+        --focus: 0 0 0 3px rgba(52, 211, 153, 0.32);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      max-width: 760px;
-      margin: 24px auto;
-      padding: 0 16px 40px;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
+      max-width: 820px;
+      margin: 28px auto;
+      padding: 0 18px 56px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       font-size: 14px;
+      line-height: 1.5;
     }
-    h1 { color: #34d399; margin-bottom: 4px; }
-    h2 { font-size: 16px; margin: 0 0 10px 0; color: #e2e8f0; }
-    .card { background: #1e293b; border-radius: 10px; padding: 16px; margin-top: 16px; }
-    .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; }
+
+    h1, h2, p { margin: 0; }
+
+    .page-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .page-head img {
+      width: 46px;
+      height: 46px;
+      padding: 6px;
+      border-radius: 13px;
+      background: var(--brand-soft);
+      border: 1px solid var(--border);
+    }
+
+    h1 { font-size: 20px; letter-spacing: 0.2px; }
+    .page-head .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+    .privacy-note {
+      display: flex;
+      gap: 8px;
+      margin: 14px 0 4px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      min-height: 48px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+      cursor: pointer;
+    }
+
+    .row:last-of-type { border-bottom: 0; }
+
+    .row input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel-2);
+      cursor: pointer;
+      flex: 0 0 auto;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .row input[type="checkbox"]:checked {
+      background: var(--brand-strong);
+      border-color: var(--brand-strong);
+    }
+
+    .row input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 1px;
+      width: 5px;
+      height: 11px;
+      border: solid #ffffff;
+      border-width: 0 2.5px 2.5px 0;
+      transform: rotate(45deg);
+    }
+
+    .row input[type="checkbox"]:focus-visible {
+      outline: none;
+      box-shadow: var(--focus);
+    }
+
+    .inline {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .inline input[type="text"] { flex: 1 1 220px; }
+
     input[type="text"] {
-      background: #0f172a; color: #f8fafc; border: 1px solid #334155;
-      border-radius: 6px; padding: 7px 10px; font-size: 13px;
+      min-height: 42px;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 13px;
     }
+
+    input[type="text"]::placeholder { color: var(--muted); opacity: 0.85; }
+    input[type="text"]:focus-visible { outline: none; border-color: var(--brand); box-shadow: var(--focus); }
+
     button {
-      padding: 7px 12px; border: 0; border-radius: 6px; cursor: pointer;
-      background: #10b981; color: #052e16; font-weight: 700;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 0;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--brand-strong);
+      color: #ffffff;
+      transition: transform 0.08s ease, filter 0.15s ease;
     }
-    button.danger { background: #ef4444; color: #fff; }
-    button.secondary { background: #334155; color: #f8fafc; }
-    code { background: #0f172a; padding: 4px 8px; border-radius: 5px; display: inline-block; word-break: break-all; }
-    ul { margin: 8px 0 0 16px; padding: 0; }
-    li { margin-bottom: 6px; }
-    .muted { color: #94a3b8; font-size: 12px; }
+
+    button:hover { filter: brightness(1.07); }
+    button:active { transform: translateY(1px); }
+    button:focus-visible { outline: none; box-shadow: var(--focus); }
+
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    button.secondary:hover { background: var(--panel); }
+
+    button.danger { background: var(--danger); color: #ffffff; }
+
+    code {
+      display: block;
+      margin: 6px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+      color: var(--text);
+    }
+
+    ul { margin: 10px 0 0; padding: 0; list-style: none; }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 11px;
+      margin-bottom: 6px;
+      border-radius: 9px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      word-break: break-word;
+    }
+
+    li button {
+      min-height: 32px;
+      padding: 4px 10px;
+      font-size: 12px;
+      flex: 0 0 auto;
+    }
+
+    .muted { color: var(--muted); font-size: 12px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .hint { margin-top: 8px; }
   </style>
 </head>
 <body>
-  <h1>ElfSec Güvenlik Eklentisi — Ayarlar</h1>
-  <div class="muted">Tüm analiz %100 cihazınızda yerel çalışır. Hiçbir veri dış sunucuya gönderilmez.</div>
+  <header class="page-head">
+    <img src="icons/icon48.png" alt="" width="46" height="46" />
+    <div>
+      <h1>ElfSec Ayarlar</h1>
+      <p class="sub">Yerel e-posta, link ve indirme koruması</p>
+    </div>
+  </header>
+
+  <p class="privacy-note">🔒 Tüm analiz %100 cihazınızda çalışır. Hiçbir veri dış sunucuya gönderilmez.</p>
 
   <div class="card">
-    <h2>Kalkan Modülleri</h2>
-    <label class="row"><span>Webmail Otomatik Kalkanı (Gmail, Outlook, Yahoo, Yandex...)</span><input type="checkbox" id="optWebmail" /></label>
-    <label class="row"><span>Şüpheli Bağlantı Engelleyici Modalı</span><input type="checkbox" id="optModal" /></label>
-    <label class="row"><span>Tarayıcı İndirme Kalkanı (.pdf.exe, .ps1, zararlı kaynak)</span><input type="checkbox" id="optDownloads" /></label>
-    <label class="row"><span>1x1 Takip Pikseli Sayacı</span><input type="checkbox" id="optTracker" /></label>
+    <h2>🛡️ Kalkan Modülleri</h2>
+    <label class="row"><span>Webmail otomatik kalkanı <span class="muted">(Gmail, Outlook, Yahoo, Yandex…)</span></span><input type="checkbox" id="optWebmail" /></label>
+    <label class="row"><span>Şüpheli bağlantı engelleyici modalı</span><input type="checkbox" id="optModal" /></label>
+    <label class="row"><span>Tarayıcı indirme kalkanı <span class="muted">(.pdf.exe, .ps1, zararlı kaynak)</span></span><input type="checkbox" id="optDownloads" /></label>
+    <label class="row"><span>1x1 takip pikseli sayacı</span><input type="checkbox" id="optTracker" /></label>
   </div>
 
   <div class="card">
-    <h2>Mağaza / Masaüstü Native Host Bağlantısı</h2>
-    <div class="muted">Bu uzantı kimliğini masaüstü <code>elfsec.exe</code> ile eşlemek için komutu kopyalayıp çalıştırın:</div>
-    <p><code id="registerCmd">elfsec.exe browser register</code></p>
-    <button id="copyCmdBtn" type="button">Komutu Kopyala</button>
-    <span id="copyMsg" class="muted" style="margin-left:8px;"></span>
+    <h2>🔗 Masaüstü Native Host Bağlantısı</h2>
+    <div class="muted">Bu uzantı kimliğini masaüstü <strong>elfsec.exe</strong> ile eşlemek için komutu kopyalayıp çalıştırın:</div>
+    <code id="registerCmd">elfsec.exe browser register</code>
+    <div class="toolbar">
+      <button id="copyCmdBtn" type="button">Komutu Kopyala</button>
+      <span id="copyMsg" class="muted" role="status" aria-live="polite"></span>
+    </div>
   </div>
 
   <div class="card">
-    <h2>Güvenilen Alan Adları (İzin Listesi)</h2>
-    <div style="display:flex;gap:8px;">
-      <input type="text" id="trustedInput" placeholder="ornek-sirketim.com.tr" style="flex:1;" />
+    <h2>✅ Güvenilen Alan Adları</h2>
+    <div class="muted">Bu alan adlarından gelen e-postalar otomatik olarak güvenilir sayılır.</div>
+    <div class="inline" style="margin-top:10px;">
+      <input type="text" id="trustedInput" placeholder="ornek-sirketim.com.tr" />
       <button id="addTrustedBtn" type="button">Ekle</button>
     </div>
     <ul id="trustedList"></ul>
   </div>
 
   <div class="card">
-    <h2>Özel Doğrulanmış Markalar</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <input type="text" id="brandLabel" placeholder="Marka adı (örn: Şirketim)" style="flex:1;" />
-      <input type="text" id="brandDomain" placeholder="Resmi alan adı (sirketim.com)" style="flex:1;" />
-      <input type="text" id="brandEmail" placeholder="Resmi adres (ik@sirketim.com)" style="flex:1;" />
+    <h2>🏷️ Özel Doğrulanmış Markalar</h2>
+    <div class="muted">Kendi markanızın resmi alan adını ve gönderen adresini ekleyerek taklit e-postaları işaretletin.</div>
+    <div class="inline" style="margin-top:10px;">
+      <input type="text" id="brandLabel" placeholder="Marka adı (örn: Şirketim)" />
+      <input type="text" id="brandDomain" placeholder="Resmi alan adı (sirketim.com)" />
+      <input type="text" id="brandEmail" placeholder="Resmi adres (ik@sirketim.com)" />
       <button id="addBrandBtn" type="button">Marka Ekle</button>
     </div>
     <ul id="brandsList"></ul>
   </div>
 
   <div class="card">
-    <h2>İstatistikler ve Geçmiş</h2>
-    <div id="statsSummary" class="muted" style="margin-bottom:10px;"></div>
-    <button id="exportBtn" type="button" class="secondary">Geçmişi JSON İndir</button>
-    <button id="clearBtn" type="button" class="danger" style="margin-left:8px;">Geçmişi Temizle</button>
+    <h2>📊 İstatistikler ve Geçmiş</h2>
+    <div id="statsSummary" class="muted" style="margin-bottom:12px;"></div>
+    <div class="toolbar" style="margin-top:0;">
+      <button id="exportBtn" type="button" class="secondary">Geçmişi JSON İndir</button>
+      <button id="clearBtn" type="button" class="danger">Geçmişi Temizle</button>
+    </div>
   </div>
 
   <script src="options.js"></script>

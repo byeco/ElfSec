@@ -1,20 +1,132 @@
-#elfsec-mail-banner.elfsec-banner {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  margin: 8px 0 12px 0;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border-left: 5px solid #10b981;
-  background: #0f172a;
-  color: #f8fafc;
-  font-size: 13px;
-  line-height: 1.45;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+/* ElfSec webmail arayüzü — banner, hover balonu, engel modalı ve toast.
+   Açık/koyu tema: işletim sistemi tercihine göre otomatik uyum sağlar. */
+
+#elfsec-mail-banner.elfsec-banner,
+#elfsec-link-modal,
+#elfsec-floating-toast.elfsec-toast {
+  --e-bg: #ffffff;
+  --e-bg-2: #f8fafc;
+  --e-text: #0f172a;
+  --e-muted: #5b6b82;
+  --e-border: #dbe3ee;
+  --e-accent: #059669;
+  --e-brand: #059669;
+  --e-chip-bg: #ecfdf5;
+  --e-chip-text: #047857;
+  --e-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+  color-scheme: light dark;
 }
 
-#elfsec-mail-banner.elfsec-lvl-low { border-left-color: #10b981; background: #064e3b; }
-#elfsec-mail-banner.elfsec-lvl-medium { border-left-color: #f59e0b; background: #78350f; }
-#elfsec-mail-banner.elfsec-lvl-high { border-left-color: #ef4444; background: #7f1d1d; }
-#elfsec-mail-banner.elfsec-lvl-critical { border-left-color: #dc2626; background: #450a0a; }
+@media (prefers-color-scheme: dark) {
+  #elfsec-mail-banner.elfsec-banner,
+  #elfsec-link-modal,
+  #elfsec-floating-toast.elfsec-toast {
+    --e-bg: #111c31;
+    --e-bg-2: #0f172a;
+    --e-text: #e8eefc;
+    --e-muted: #9fb0c7;
+    --e-border: #24344f;
+    --e-accent: #34d399;
+    --e-brand: #34d399;
+    --e-chip-bg: rgba(16, 185, 129, 0.16);
+    --e-chip-text: #6ee7b7;
+    --e-shadow: 0 14px 38px rgba(2, 6, 23, 0.55);
+  }
+}
+
+/* Seviye renkleri (banner / modal kartı / toast) */
+#elfsec-mail-banner.elfsec-lvl-low,
+#elfsec-link-modal .elfsec-modal-card.elfsec-lvl-low,
+#elfsec-floating-toast.elfsec-lvl-low {
+  --e-accent: #10b981;
+  --e-chip-bg: #ecfdf5;
+  --e-chip-text: #047857;
+}
+
+#elfsec-mail-banner.elfsec-lvl-medium,
+#elfsec-link-modal .elfsec-modal-card.elfsec-lvl-medium,
+#elfsec-floating-toast.elfsec-lvl-medium {
+  --e-accent: #f59e0b;
+  --e-chip-bg: #fffbeb;
+  --e-chip-text: #b45309;
+}
+
+#elfsec-mail-banner.elfsec-lvl-high,
+#elfsec-link-modal .elfsec-modal-card.elfsec-lvl-high,
+#elfsec-floating-toast.elfsec-lvl-high {
+  --e-accent: #ef4444;
+  --e-chip-bg: #fef2f2;
+  --e-chip-text: #b91c1c;
+}
+
+#elfsec-mail-banner.elfsec-lvl-critical,
+#elfsec-link-modal .elfsec-modal-card.elfsec-lvl-critical,
+#elfsec-floating-toast.elfsec-lvl-critical {
+  --e-accent: #b91c1c;
+  --e-chip-bg: #fef2f2;
+  --e-chip-text: #7f1d1d;
+}
+
+@media (prefers-color-scheme: dark) {
+  #elfsec-mail-banner.elfsec-lvl-low,
+  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-low,
+  #elfsec-floating-toast.elfsec-lvl-low {
+    --e-accent: #34d399;
+    --e-chip-bg: rgba(16, 185, 129, 0.16);
+    --e-chip-text: #6ee7b7;
+  }
+
+  #elfsec-mail-banner.elfsec-lvl-medium,
+  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-medium,
+  #elfsec-floating-toast.elfsec-lvl-medium {
+    --e-accent: #fbbf24;
+    --e-chip-bg: rgba(245, 158, 11, 0.18);
+    --e-chip-text: #fcd34d;
+  }
+
+  #elfsec-mail-banner.elfsec-lvl-high,
+  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-high,
+  #elfsec-floating-toast.elfsec-lvl-high {
+    --e-accent: #f87171;
+    --e-chip-bg: rgba(239, 68, 68, 0.18);
+    --e-chip-text: #fca5a5;
+  }
+
+  #elfsec-mail-banner.elfsec-lvl-critical,
+  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-critical,
+  #elfsec-floating-toast.elfsec-lvl-critical {
+    --e-accent: #ef4444;
+    --e-chip-bg: rgba(239, 68, 68, 0.24);
+    --e-chip-text: #fecaca;
+  }
+}
+
+/* ---------------- E-posta üstü banner ---------------- */
+
+#elfsec-mail-banner.elfsec-banner {
+  position: relative;
+  display: block;
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--e-border);
+  border-left: 6px solid var(--e-accent);
+  border-radius: 14px;
+  background: var(--e-bg);
+  color: var(--e-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  box-shadow: var(--e-shadow);
+  animation: elfsec-pop 0.16s ease-out;
+}
+
+#elfsec-mail-banner.elfsec-banner *,
+#elfsec-link-modal *,
+#elfsec-link-tooltip *,
+#elfsec-floating-toast * {
+  box-sizing: border-box;
+}
 
 #elfsec-mail-banner .elfsec-banner-head {
   display: flex;
@@ -23,149 +135,479 @@
   flex-wrap: wrap;
 }
 
+#elfsec-mail-banner .elfsec-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--e-brand);
+}
+
+#elfsec-mail-banner .elfsec-brand svg { width: 16px; height: 16px; }
+
 #elfsec-mail-banner .elfsec-badge {
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.35);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 #elfsec-mail-banner .elfsec-verify-pill,
 #elfsec-mail-banner .elfsec-tracker-pill {
-  font-weight: 700;
-  padding: 2px 8px;
+  padding: 4px 9px;
   border-radius: 999px;
   font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-#elfsec-mail-banner .elfsec-verify-ok { background: #059669; color: #ecfdf5; }
-#elfsec-mail-banner .elfsec-verify-bad { background: #dc2626; color: #fef2f2; }
-#elfsec-mail-banner .elfsec-tracker-pill { background: #334155; color: #e2e8f0; }
+#elfsec-mail-banner .elfsec-verify-ok {
+  background: #ecfdf5;
+  color: #047857;
+}
 
-#elfsec-mail-banner .elfsec-meta { flex: 1; opacity: 0.95; }
+#elfsec-mail-banner .elfsec-verify-bad {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  #elfsec-mail-banner .elfsec-verify-ok {
+    background: rgba(16, 185, 129, 0.16);
+    color: #6ee7b7;
+  }
+
+  #elfsec-mail-banner .elfsec-verify-bad {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fca5a5;
+  }
+}
+
+#elfsec-mail-banner .elfsec-tracker-pill {
+  background: var(--e-bg-2);
+  color: var(--e-muted);
+  border: 1px solid var(--e-border);
+}
+
+#elfsec-mail-banner .elfsec-meta {
+  flex: 1 1 160px;
+  min-width: 0;
+  color: var(--e-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 #elfsec-mail-banner .elfsec-rescan-btn {
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  padding: 3px 10px;
-  border-radius: 5px;
-  cursor: pointer;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--e-border);
+  border-radius: 9px;
+  background: var(--e-bg-2);
+  color: var(--e-text);
+  font: inherit;
   font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-#elfsec-mail-banner .elfsec-reasons { margin: 8px 0 0 18px; padding: 0; }
-#elfsec-mail-banner .elfsec-rec { margin-top: 6px; font-weight: 600; }
+#elfsec-mail-banner .elfsec-rescan-btn:hover { filter: brightness(0.97); }
+#elfsec-mail-banner .elfsec-rescan-btn:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 2px; }
 
+#elfsec-mail-banner .elfsec-reasons {
+  margin: 9px 0 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+#elfsec-mail-banner .elfsec-reasons li {
+  position: relative;
+  margin: 3px 0;
+  padding-left: 16px;
+}
+
+#elfsec-mail-banner .elfsec-reasons li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: var(--e-accent);
+  font-weight: 800;
+}
+
+#elfsec-mail-banner .elfsec-rec {
+  margin-top: 9px;
+  padding: 8px 10px;
+  border: 1px dashed var(--e-border);
+  border-radius: 10px;
+  background: var(--e-bg-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Riskli bağlantı vurgusu */
 a.elfsec-sus-link {
   outline: 2px dashed #ef4444 !important;
   outline-offset: 2px;
+  border-radius: 3px;
   background-color: rgba(239, 68, 68, 0.12) !important;
 }
+
+/* ---------------- Hover hedef balonu ---------------- */
 
 #elfsec-link-tooltip {
   position: fixed;
   z-index: 2147483647;
-  max-width: 320px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  max-width: 340px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
   pointer-events: none;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  word-break: break-all;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+  animation: elfsec-pop 0.12s ease-out;
+}
+
+#elfsec-link-tooltip .elfsec-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+#elfsec-link-tooltip .elfsec-tip-head svg { width: 13px; height: 13px; flex: 0 0 auto; }
+
+#elfsec-link-tooltip .elfsec-tip-host {
+  margin-top: 3px;
+  font-size: 13.5px;
+  font-weight: 800;
   word-break: break-all;
 }
 
-#elfsec-link-tooltip.elfsec-tip-ok { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; }
-#elfsec-link-tooltip.elfsec-tip-bad { background: #7f1d1d; color: #fef2f2; border: 1px solid #ef4444; }
+#elfsec-link-tooltip .elfsec-tip-url {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 10.5px;
+  opacity: 0.8;
+}
+
+#elfsec-link-tooltip.elfsec-tip-ok {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #dbe3ee;
+}
+
+#elfsec-link-tooltip.elfsec-tip-ok .elfsec-tip-head { color: #047857; }
+
+#elfsec-link-tooltip.elfsec-tip-bad {
+  background: #fff1f2;
+  color: #7f1d1d;
+  border-color: #fecdd3;
+}
+
+#elfsec-link-tooltip.elfsec-tip-bad .elfsec-tip-head { color: #b91c1c; }
+
+@media (prefers-color-scheme: dark) {
+  #elfsec-link-tooltip.elfsec-tip-ok {
+    background: #111c31;
+    color: #e8eefc;
+    border-color: #24344f;
+  }
+
+  #elfsec-link-tooltip.elfsec-tip-ok .elfsec-tip-head { color: #6ee7b7; }
+
+  #elfsec-link-tooltip.elfsec-tip-bad {
+    background: #3f1116;
+    color: #fecaca;
+    border-color: #7f1d1d;
+  }
+
+  #elfsec-link-tooltip.elfsec-tip-bad .elfsec-tip-head { color: #fca5a5; }
+}
+
+/* ---------------- Şüpheli bağlantı modalı ---------------- */
 
 #elfsec-link-modal {
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  background: rgba(15, 23, 42, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: left;
 }
 
 #elfsec-link-modal .elfsec-modal-card {
   width: 100%;
-  max-width: 460px;
-  background: #0f172a;
-  color: #f8fafc;
-  border: 2px solid #ef4444;
-  border-radius: 12px;
-  padding: 18px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  max-width: 500px;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--e-border);
+  border-top: 5px solid var(--e-accent);
+  border-radius: 16px;
+  background: var(--e-bg);
+  color: var(--e-text);
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: var(--e-shadow);
+  animation: elfsec-pop 0.18s ease-out;
 }
 
-#elfsec-link-modal .elfsec-modal-title { font-size: 16px; font-weight: 700; color: #fca5a5; margin-bottom: 6px; }
-#elfsec-link-modal .elfsec-modal-sub { margin: 0 0 10px 0; font-size: 13px; color: #e2e8f0; }
+#elfsec-link-modal .elfsec-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#elfsec-link-modal .elfsec-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+}
+
+#elfsec-link-modal .elfsec-modal-icon svg { width: 20px; height: 20px; }
+
+#elfsec-link-modal .elfsec-modal-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+#elfsec-link-modal .elfsec-modal-title {
+  margin: 2px 0 4px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+#elfsec-link-modal .elfsec-modal-sub {
+  margin: 0;
+  color: var(--e-muted);
+  font-size: 13px;
+}
 
 #elfsec-link-modal .elfsec-modal-url {
-  background: #1e293b;
-  border: 1px solid #334155;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 12px;
-  word-break: break-all;
-  color: #fecaca;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--e-border);
+  border-radius: 10px;
+  background: var(--e-bg-2);
+  overflow: hidden;
 }
 
-#elfsec-link-modal .elfsec-modal-reasons { margin: 10px 0 14px 18px; padding: 0; font-size: 13px; }
-#elfsec-link-modal .elfsec-modal-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+#elfsec-link-modal .elfsec-modal-host {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  word-break: break-all;
+}
+
+#elfsec-link-modal .elfsec-modal-full {
+  display: block;
+  margin-top: 2px;
+  color: var(--e-muted);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+#elfsec-link-modal .elfsec-modal-reasons {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+#elfsec-link-modal .elfsec-modal-reasons li {
+  position: relative;
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+#elfsec-link-modal .elfsec-modal-reasons li::before {
+  content: "!";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+#elfsec-link-modal .elfsec-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
 
 #elfsec-link-modal .elfsec-btn-safe {
+  flex: 1 1 200px;
+  min-height: 46px;
+  padding: 12px 16px;
   border: 0;
-  background: #10b981;
-  color: #052e16;
-  font-weight: 700;
-  padding: 8px 14px;
-  border-radius: 6px;
+  border-radius: 11px;
+  background: #047857;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
   cursor: pointer;
 }
 
+#elfsec-link-modal .elfsec-btn-safe:hover { filter: brightness(1.08); }
+
 #elfsec-link-modal .elfsec-btn-risk {
-  border: 1px solid #475569;
+  flex: 0 1 auto;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid var(--e-border);
+  border-radius: 11px;
   background: transparent;
-  color: #cbd5e1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
+  color: var(--e-muted);
+  font: inherit;
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
 }
+
+#elfsec-link-modal .elfsec-btn-risk:hover {
+  color: var(--e-text);
+  border-color: var(--e-text);
+}
+
+#elfsec-link-modal .elfsec-btn-safe:focus-visible,
+#elfsec-link-modal .elfsec-btn-risk:focus-visible {
+  outline: 2px solid var(--e-accent);
+  outline-offset: 2px;
+}
+
+#elfsec-link-modal .elfsec-modal-hint {
+  margin-top: 10px;
+  color: var(--e-muted);
+  font-size: 10.5px;
+  text-align: right;
+}
+
+/* ---------------- Sağ-tık tarama toast'u ---------------- */
 
 #elfsec-floating-toast.elfsec-toast {
   position: fixed;
   right: 18px;
   bottom: 18px;
   z-index: 2147483647;
-  max-width: 360px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: #111827;
-  color: #f9fafb;
-  border-left: 5px solid #10b981;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  width: min(360px, calc(100vw - 36px));
+  padding: 14px 16px;
+  border: 1px solid var(--e-border);
+  border-left: 6px solid var(--e-accent);
+  border-radius: 14px;
+  background: var(--e-bg);
+  color: var(--e-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  line-height: 1.5;
+  text-align: left;
+  box-shadow: var(--e-shadow);
+  animation: elfsec-slide-in 0.18s ease-out;
 }
 
-#elfsec-floating-toast.elfsec-lvl-medium { border-left-color: #f59e0b; }
-#elfsec-floating-toast.elfsec-lvl-high,
-#elfsec-floating-toast.elfsec-lvl-critical { border-left-color: #ef4444; }
-#elfsec-floating-toast .elfsec-toast-title { font-weight: 700; margin-bottom: 4px; }
+#elfsec-floating-toast .elfsec-toast-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--e-accent);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+#elfsec-floating-toast .elfsec-toast-head svg { width: 15px; height: 15px; }
+
+#elfsec-floating-toast .elfsec-toast-title {
+  margin-top: 3px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+#elfsec-floating-toast .elfsec-toast-msg {
+  margin-top: 4px;
+  color: var(--e-muted);
+  font-size: 12.5px;
+  word-break: break-word;
+}
 
 #elfsec-floating-toast .elfsec-toast-close {
-  margin-top: 8px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 4px;
+  min-height: 36px;
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--e-border);
+  border-radius: 9px;
+  background: var(--e-bg-2);
+  color: var(--e-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+}
+
+#elfsec-floating-toast .elfsec-toast-close:hover { filter: brightness(0.97); }
+
+/* ---------------- Animasyonlar ---------------- */
+
+@keyframes elfsec-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes elfsec-slide-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #elfsec-mail-banner.elfsec-banner,
+  #elfsec-link-tooltip,
+  #elfsec-link-modal .elfsec-modal-card,
+  #elfsec-floating-toast.elfsec-toast {
+    animation: none;
+  }
 }

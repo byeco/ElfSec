@@ -4,7 +4,45 @@
 
   const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
   const TRACKING_HINTS = ["track", "open", "click", "pixel", "beacon", "utm_", "mailtrack", "sendgrid", "mailgun"];
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const LEVEL_LABELS = { LOW: "Düşük", MEDIUM: "Orta", HIGH: "Yüksek", CRITICAL: "Kritik" };
   let lastFingerprint = "";
+
+  function levelLabel(raw) {
+    const lvl = String(raw || "LOW").toUpperCase();
+    return LEVEL_LABELS[lvl] || LEVEL_LABELS.LOW;
+  }
+
+  function textEl(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  /* Marka işareti: dış kaynak yüklemeden, sayfaya gömülü SVG kalkan. */
+  function shieldIcon() {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const shield = document.createElementNS(SVG_NS, "path");
+    shield.setAttribute("d", "M12 2.6 4.8 5.4v5.9c0 4.5 3.1 8.3 7.2 9.4 4.1-1.1 7.2-4.9 7.2-9.4V5.4L12 2.6Z");
+    shield.setAttribute("fill", "none");
+    shield.setAttribute("stroke", "currentColor");
+    shield.setAttribute("stroke-width", "1.7");
+    shield.setAttribute("stroke-linejoin", "round");
+    const check = document.createElementNS(SVG_NS, "path");
+    check.setAttribute("d", "m8.8 11.8 2.2 2.2 4.2-4.4");
+    check.setAttribute("fill", "none");
+    check.setAttribute("stroke", "currentColor");
+    check.setAttribute("stroke-width", "2");
+    check.setAttribute("stroke-linecap", "round");
+    check.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(shield);
+    svg.appendChild(check);
+    return svg;
+  }
   let debounceTimer = null;
   let highRiskUrls = new Set();
 
@@ -171,69 +209,101 @@
     return !a.endsWith("." + t) && !t.endsWith("." + a);
   }
 
-  function showLinkWarningModal(href, report, mismatchHost) {
+  function showLinkWarningModal(href, report, mismatchHost, triggerEl) {
     const old = document.getElementById("elfsec-link-modal");
     if (old) old.remove();
 
+    const lvl = String((report && report.risk_level) || "HIGH").toUpperCase();
+    const previousFocus = triggerEl || document.activeElement;
+
     const overlay = document.createElement("div");
     overlay.id = "elfsec-link-modal";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "elfsec-modal-title");
+    overlay.setAttribute("aria-describedby", "elfsec-modal-sub");
+    overlay.tabIndex = -1;
 
-    const card = document.createElement("div");
-    card.className = "elfsec-modal-card";
+    const card = textEl("div", `elfsec-modal-card elfsec-lvl-${lvl.toLowerCase()}`);
 
-    const title = document.createElement("div");
-    title.className = "elfsec-modal-title";
-    title.textContent = `ElfSec Güvenlik Kalkanı [${report.risk_level || "HIGH"} ${report.risk_score ?? 0}/100]`;
+    const head = textEl("div", "elfsec-modal-head");
+    const icon = textEl("span", "elfsec-modal-icon");
+    icon.appendChild(shieldIcon());
+    head.appendChild(icon);
+    head.appendChild(textEl("span", "elfsec-modal-chip", `${levelLabel(lvl)} risk • ${report.risk_score ?? 0}/100`));
 
-    const sub = document.createElement("p");
-    sub.className = "elfsec-modal-sub";
-    sub.textContent = mismatchHost
-      ? "Dikkat: Görünür metindeki adres ile gerçek hedef alan adı UYUŞMUYOR!"
-      : "Bu bağlantı oltalama veya şüpheli hedef olarak işaretlendi:";
+    const title = textEl("h2", "elfsec-modal-title", mismatchHost
+      ? "Hedef adres uyuşmuyor"
+      : "Bu bağlantı riskli görünüyor");
+    title.id = "elfsec-modal-title";
 
-    const urlBox = document.createElement("div");
-    urlBox.className = "elfsec-modal-url";
-    urlBox.textContent = href;
+    const sub = textEl("p", "elfsec-modal-sub", mismatchHost
+      ? "Görünen adres ile gerçek hedef farklı. Bu bir oltalama girişimi olabilir; devam etmeyin."
+      : "Bağlantı şüpheli olarak işaretlendi. Devam etmeden önce hedefi resmi kanaldan doğrulayın.");
+    sub.id = "elfsec-modal-sub";
 
-    const ul = document.createElement("ul");
-    ul.className = "elfsec-modal-reasons";
-    (report.reasons || []).slice(0, 4).forEach((r) => {
-      const li = document.createElement("li");
-      li.textContent = String(r);
-      ul.appendChild(li);
-    });
+    const urlBox = textEl("div", "elfsec-modal-url");
+    urlBox.appendChild(textEl("span", "elfsec-modal-host", getHostSafe(href) || "Bilinmeyen hedef"));
+    urlBox.appendChild(textEl("span", "elfsec-modal-full", href));
 
-    const actions = document.createElement("div");
-    actions.className = "elfsec-modal-actions";
+    const ul = textEl("ul", "elfsec-modal-reasons");
+    const reasons = Array.isArray(report.reasons) && report.reasons.length
+      ? report.reasons
+      : ["Bağlantı hedefi güvenilir olarak doğrulanamadı."];
+    reasons.slice(0, 5).forEach((r) => ul.appendChild(textEl("li", "", r)));
 
-    const safeBtn = document.createElement("button");
+    const actions = textEl("div", "elfsec-modal-actions");
+    const safeBtn = textEl("button", "elfsec-btn-safe", "← Güvenli Geri Dön");
     safeBtn.type = "button";
-    safeBtn.className = "elfsec-btn-safe";
-    safeBtn.textContent = "Geri Dön (Güvenli)";
-    safeBtn.addEventListener("click", () => overlay.remove());
-
-    const openBtn = document.createElement("button");
+    const openBtn = textEl("button", "elfsec-btn-risk", "Riski biliyorum, yine de aç");
     openBtn.type = "button";
-    openBtn.className = "elfsec-btn-risk";
-    openBtn.textContent = "Riski Biliyorum, Yine de Aç";
-    openBtn.addEventListener("click", () => {
+    actions.append(safeBtn, openBtn);
+
+    const hint = textEl("div", "elfsec-modal-hint", "Kapatmak için ESC · Güvenli seçenek varsayılandır");
+
+    card.append(head, title, sub, urlBox, ul, actions, hint);
+    overlay.appendChild(card);
+
+    let closed = false;
+    function closeModal() {
+      if (closed) return;
+      closed = true;
       overlay.remove();
+      if (previousFocus && typeof previousFocus.focus === "function") {
+        try { previousFocus.focus(); } catch (_e) { /* öğe kaldırılmış olabilir */ }
+      }
+    }
+
+    safeBtn.addEventListener("click", closeModal);
+    openBtn.addEventListener("click", () => {
+      closeModal();
       window.open(href, "_blank", "noopener,noreferrer");
     });
 
-    actions.appendChild(safeBtn);
-    actions.appendChild(openBtn);
-    card.appendChild(title);
-    card.appendChild(sub);
-    card.appendChild(urlBox);
-    card.appendChild(ul);
-    card.appendChild(actions);
-    overlay.appendChild(card);
-
     overlay.addEventListener("click", (ev) => {
-      if (ev.target === overlay) overlay.remove();
+      if (ev.target === overlay) closeModal();
     });
+
+    overlay.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeModal();
+        return;
+      }
+      if (ev.key !== "Tab") return;
+      const focusables = [safeBtn, openBtn];
+      const idx = focusables.indexOf(document.activeElement);
+      if (ev.shiftKey && idx <= 0) {
+        ev.preventDefault();
+        openBtn.focus();
+      } else if (!ev.shiftKey && idx === focusables.length - 1) {
+        ev.preventDefault();
+        safeBtn.focus();
+      }
+    });
+
     document.body.appendChild(overlay);
+    safeBtn.focus();
   }
 
   function wireBodyLinks(bodyEl, report, lvl) {
@@ -257,14 +327,32 @@
         a.dataset.elfsecHover = "1";
         a.addEventListener("mouseenter", (ev) => {
           tip.className = isSus ? "elfsec-tip-bad" : "elfsec-tip-ok";
-          tip.textContent = mismatchHost
-            ? `⚠ Hedef Uyuşmazlığı! Gerçek hedef: ${actualHost} (${href.slice(0, 90)})`
-            : isSus
-              ? `⚠ Şüpheli Hedef: ${actualHost} (${href.slice(0, 90)})`
-              : `Hedef: ${actualHost}`;
-          tip.style.left = `${Math.min(window.innerWidth - 340, ev.clientX + 12)}px`;
-          tip.style.top = `${Math.min(window.innerHeight - 70, ev.clientY + 16)}px`;
+          tip.replaceChildren();
+
+          const tipHead = textEl("div", "elfsec-tip-head");
+          tipHead.appendChild(shieldIcon());
+          tipHead.appendChild(textEl("span", "", mismatchHost
+            ? "Hedef uyuşmazlığı"
+            : isSus ? "Şüpheli hedef" : "Bağlantı hedefi"));
+          tip.appendChild(tipHead);
+          tip.appendChild(textEl("div", "elfsec-tip-host", actualHost || "bilinmeyen alan adı"));
+          tip.appendChild(textEl("span", "elfsec-tip-url", href));
+
+          /* Görünür alan içinde kalacak şekilde konumlandır. */
           tip.style.display = "block";
+          tip.style.left = "0px";
+          tip.style.top = "0px";
+          const box = tip.getBoundingClientRect();
+          let x = ev.clientX + 14;
+          let y = ev.clientY + 18;
+          if (x + box.width > window.innerWidth - 10) {
+            x = Math.max(10, ev.clientX - box.width - 14);
+          }
+          if (y + box.height > window.innerHeight - 10) {
+            y = Math.max(10, ev.clientY - box.height - 14);
+          }
+          tip.style.left = `${x}px`;
+          tip.style.top = `${y}px`;
         });
         a.addEventListener("mouseleave", () => {
           tip.style.display = "none";
@@ -277,7 +365,7 @@
           if (report.linkModal === false) return;
           ev.preventDefault();
           ev.stopPropagation();
-          showLinkWarningModal(href, report, mismatchHost);
+          showLinkWarningModal(href, report, mismatchHost, a);
         });
       }
     });
@@ -292,13 +380,20 @@
     const banner = document.createElement("div");
     banner.id = "elfsec-mail-banner";
     banner.className = `elfsec-banner elfsec-lvl-${lvl.toLowerCase()}`;
+    banner.setAttribute("role", "status");
 
     const header = document.createElement("div");
     header.className = "elfsec-banner-head";
 
+    const brand = document.createElement("span");
+    brand.className = "elfsec-brand";
+    brand.appendChild(shieldIcon());
+    brand.appendChild(document.createTextNode("ElfSec"));
+    header.appendChild(brand);
+
     const badge = document.createElement("span");
     badge.className = "elfsec-badge";
-    badge.textContent = `ElfSec [${lvl}] ${report.risk_score ?? 0}/100`;
+    badge.textContent = `${levelLabel(lvl)} risk · ${report.risk_score ?? 0}/100`;
     header.appendChild(badge);
 
     const sv = report.sender_verification || {};
@@ -366,10 +461,16 @@
     const box = document.createElement("div");
     box.id = "elfsec-floating-toast";
     box.className = `elfsec-toast elfsec-lvl-${lvl.toLowerCase()}`;
+    box.setAttribute("role", "status");
+
+    const head = document.createElement("div");
+    head.className = "elfsec-toast-head";
+    head.appendChild(shieldIcon());
+    head.appendChild(document.createTextNode("ElfSec Güvenlik Kalkanı"));
 
     const title = document.createElement("div");
     title.className = "elfsec-toast-title";
-    title.textContent = `ElfSec [${lvl}] ${report.risk_score ?? 0}/100`;
+    title.textContent = `${levelLabel(lvl)} risk · ${report.risk_score ?? 0}/100`;
 
     const msg = document.createElement("div");
     msg.className = "elfsec-toast-msg";
@@ -381,6 +482,7 @@
     closeBtn.textContent = "Kapat";
     closeBtn.addEventListener("click", () => box.remove());
 
+    box.appendChild(head);
     box.appendChild(title);
     box.appendChild(msg);
     box.appendChild(closeBtn);

@@ -40,14 +40,15 @@ document.addEventListener("DOMContentLoaded", () => {
       optDownloads.checked = currentSettings.downloadsShield !== false;
       optTracker.checked = currentSettings.trackerCounter !== false;
 
-      trustedList.innerHTML = "";
+      trustedList.replaceChildren();
       (currentSettings.trustedDomains || []).forEach((dom) => {
         const li = document.createElement("li");
-        li.textContent = dom + " ";
+        li.appendChild(document.createTextNode(dom));
         const rm = document.createElement("button");
         rm.type = "button";
         rm.className = "secondary";
         rm.textContent = "Sil";
+        rm.setAttribute("aria-label", `${dom} alan adını kaldır`);
         rm.addEventListener("click", () => {
           saveSettings({ trustedDomains: (currentSettings.trustedDomains || []).filter((x) => x !== dom) });
         });
@@ -55,14 +56,15 @@ document.addEventListener("DOMContentLoaded", () => {
         trustedList.appendChild(li);
       });
 
-      brandsList.innerHTML = "";
+      brandsList.replaceChildren();
       (currentSettings.customBrands || []).forEach((b, idx) => {
         const li = document.createElement("li");
-        li.textContent = `${b.label} — ${(b.domains || []).join(", ")} ${(b.emails || []).join(", ")} `;
+        li.appendChild(document.createTextNode(`${b.label} — ${(b.domains || []).join(", ")} ${(b.emails || []).join(", ")}`));
         const rm = document.createElement("button");
         rm.type = "button";
         rm.className = "secondary";
         rm.textContent = "Sil";
+        rm.setAttribute("aria-label", `${b.label} markasını kaldır`);
         rm.addEventListener("click", () => {
           const next = (currentSettings.customBrands || []).slice();
           next.splice(idx, 1);
@@ -91,10 +93,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   copyCmdBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(registerCmd.textContent).then(() => {
+    const done = () => {
       copyMsg.textContent = "Kopyalandı!";
       setTimeout(() => { copyMsg.textContent = ""; }, 2500);
-    });
+    };
+    const fail = () => {
+      copyMsg.textContent = "Kopyalanamadı — komutu elle seçin.";
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(registerCmd.textContent).then(done).catch(fail);
+    } else {
+      fail();
+    }
   });
 
   addTrustedBtn.addEventListener("click", () => {
@@ -117,6 +127,16 @@ document.addEventListener("DOMContentLoaded", () => {
     brandDomain.value = "";
     brandEmail.value = "";
     saveSettings({ customBrands: list });
+  });
+
+  /* Enter ile ekleme: form alanlarında klavye akışı. */
+  [trustedInput, brandLabel, brandDomain, brandEmail].forEach((el) => {
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter") return;
+      ev.preventDefault();
+      if (el === trustedInput) addTrustedBtn.click();
+      else addBrandBtn.click();
+    });
   });
 
   exportBtn.addEventListener("click", () => {

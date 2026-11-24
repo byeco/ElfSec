@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Yayınlanmamış — Arayüz Yenileme
+
+- **Popup paneli (`extension/popup.html`, `popup.js`):** Marka başlığı ve kalkan logosu, üçlü istatistik kartları, daha büyük dokunma hedefli koruma anahtarı, geniş "Tara" butonu ve seviye renkli alarm kartları. Durum rozeti artık native bağlantı sürümünü gösteriyor; sonuç ve alarm metinleri `textContent` ile güvenli biçimde basılıyor.
+- **Ayarlar sayfası (`extension/options.html`, `options.js`):** Kart tabanlı düzen, özel onay kutuları, gizlilik vurgusu, Enter ile ekleme, kopyalama hatası geri bildirimi ve `replaceChildren` ile güvenli liste çizimi.
+- **E-posta şeridi / hover balonu / engel modalı / toast (`banner.css`, `content.js`):** ElfSec kalkan işareti, seviye etiketleri (Düşük/Orta/Yüksek/Kritik), gerçek alan adını öne çıkaran hedef balonu, odak tuzağı + ESC desteği olan erişilebilir modal ve `prefers-color-scheme` ile otomatik açık/koyu tema. `prefers-reduced-motion` desteği eklendi.
+
 ## v1.6.0 — Mağaza Hazır Tarayıcı Uzantısı (Chrome / Edge / Firefox) + İndirme & Link Kalkanı
 
 - **Gelişmiş Webmail Kalkanı (`extension/content.js`, `banner.css`):**
