@@ -1,13 +1,15 @@
 # Kullanıcı indirmesi: `v*` tag'i pushlanınca Windows'ta TEK elfsec.exe derlenir
-# (CLI + guard birleşik, --tray arka plan). İkinci guard exe yoktur.
-# ve GitHub Releases'e otomatik eklenir.
-# Kullanım: git tag v0.2.0; git push origin v0.2.0
+# (CLI + guard + Windows eklentisi birleşik) ve GitHub Releases'e yüklenir.
+# Kullanım: git tag v1.4.1; git push origin v1.4.1
 name: release-exe
 
 on:
   push:
     tags:
       - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -21,13 +23,29 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pyinstaller==6.13.0
-      - run: pyinstaller --noconfirm --clean --onefile --console --name elfsec elfsec.py
+      - run: >
+          pyinstaller --noconfirm --clean --onefile --console --name elfsec
+          --hidden-import imap_tools --hidden-import bleach --hidden-import lxml
+          --hidden-import pydantic_settings --hidden-import app.win_service
+          --hidden-import app.win_plugin --hidden-import app.native_host
+          --hidden-import app.services.file_scanner
+          --hidden-import app.watchers.file_watcher
+          --hidden-import app.watchers.clipboard_guard
+          elfsec.py
       - run: .\dist\elfsec.exe health
+      - run: .\dist\elfsec.exe kontrol --fail-only --fail-on HIGH
+      - working-directory: .
+        shell: pwsh
+        run: Compress-Archive -Path extension\* -DestinationPath elfsec-browser-extension.zip -Force
       - uses: actions/upload-artifact@v4
         with:
           name: elfsec-windows
-          path: backend/dist/elfsec.exe
+          path: |
+            backend/dist/elfsec.exe
+            elfsec-browser-extension.zip
       - uses: softprops/action-gh-release@v2
         with:
-          files: backend/dist/elfsec.exe
+          files: |
+            backend/dist/elfsec.exe
+            elfsec-browser-extension.zip
           generate_release_notes: true

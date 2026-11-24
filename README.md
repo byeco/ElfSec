@@ -1,4 +1,4 @@
-# ElfSec — Windows Güvenlik Eklentisi & E-posta Analiz Aracı (v1.4.0)
+# ElfSec — Windows Güvenlik Eklentisi & E-posta Analiz Aracı (v1.4.1)
 
 [🇹🇷 Türkçe](#-türkçe) | [🇬🇧 English](#-english)
 

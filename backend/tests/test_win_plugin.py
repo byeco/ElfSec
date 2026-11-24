@@ -200,19 +200,61 @@ def test_win_service_and_plugin_mocked_ops(monkeypatch, tmp_path):
     monkeypatch.setattr(win_plugin, "uninstall_service", lambda: (True, "removed"))
 
     ok_i, _ = win_service.install_service(exe_path="elfsec.exe")
-    assert ok_i is True
-    assert win_service.start_service()[0] is True
-    assert win_service.stop_service()[0] is True
-    assert win_service.uninstall_service()[0] is True
+    if os.name == "nt":
+        assert ok_i is True
+        assert win_service.start_service()[0] is True
+        assert win_service.stop_service()[0] is True
+        assert win_service.uninstall_service()[0] is True
+        res_p = win_plugin.install_plugin(exe_path="elfsec.exe", user_only=False, with_service=True, start_now=True)
+        assert res_p["ok"] is True and res_p["agent_started"] is True
+        res_u = win_plugin.uninstall_plugin(user_only=False)
+        assert res_u["ok"] is True
+    else:
+        assert ok_i is False
+        assert win_service.start_service()[0] is False
+        assert win_service.stop_service()[0] is False
+        assert win_service.uninstall_service()[0] is False
+        assert win_plugin.install_plugin(exe_path="elfsec.exe", user_only=False)["ok"] is False
+        assert win_plugin.uninstall_plugin(user_only=False)["ok"] is False
     assert win_service.service_status()["service_name"] == win_service.SERVICE_NAME
-
-    res_p = win_plugin.install_plugin(exe_path="elfsec.exe", user_only=False, with_service=True, start_now=True)
-    assert res_p["ok"] is True and res_p["agent_started"] is True
-    res_u = win_plugin.uninstall_plugin(user_only=False)
-    assert res_u["ok"] is True
 
     # CLI table & text outputs
     assert cli_main(["plugin", "status"]) == 0
     assert cli_main(["service", "status"]) == 0
     assert cli_main(["clipboard", "--once", "--text", "http://evil.tk/verify", "--json", "--notify", "off", "--fail-on", "NEVER"]) == 0
     assert cli_main(["scan-path", str(dl), "--json", "--fail-on", "NEVER"]) == 0
+
+
+def test_cross_platform_file_scanner_and_cli_branches(monkeypatch, tmp_path):
+    import pytest
+    from app import win_plugin
+    from app.services.file_scanner import restore_quarantined_file, scan_file_security
+
+    url_file = tmp_path / "link.url"
+    url_file.write_text("[InternetShortcut]\nURL=http://evil.tk/login\n", encoding="utf-8")
+    r_url = scan_file_security(url_file)
+    assert r_url["risk_score"] >= 20
+
+    docm = tmp_path / "makro.docm"
+    docm.write_bytes(b"PK\x03\x04dummy")
+    assert scan_file_security(docm)["risk_score"] >= 15
+
+    zipf = tmp_path / "arsiv.zip"
+    zipf.write_bytes(b"PK\x03\x04dummy")
+    assert scan_file_security(zipf)["risk_score"] >= 8
+
+    not_q = tmp_path / "plain.txt"
+    not_q.write_text("hi", encoding="utf-8")
+    with pytest.raises(ValueError):
+        restore_quarantined_file(not_q, tmp_path / "dest.txt")
+
+    # Mocked browser/plugin/service CLI branches (Windows + Linux)
+    monkeypatch.setattr(win_plugin, "register_browser_hosts", lambda **kw: {"ok": True, "scope": "HKCU", "chromium_manifest": "x.json"})
+    monkeypatch.setattr(win_plugin, "unregister_browser_hosts", lambda **kw: {"ok": True, "removed": True})
+    monkeypatch.setattr(win_plugin, "install_plugin", lambda **kw: {"ok": True, "scope": "HKCU", "registry_entries": 7, "service_message": "ok"})
+    monkeypatch.setattr(win_plugin, "uninstall_plugin", lambda **kw: {"ok": True})
+    assert cli_main(["browser", "register", "--user-only", "--json"]) == 0
+    assert cli_main(["browser", "unregister", "--user-only"]) == 0
+    assert cli_main(["plugin", "install", "--user-only", "--json"]) == 0
+    assert cli_main(["plugin", "uninstall", "--user-only"]) == 0
+    assert cli_main(["quarantine-file", str(tmp_path / "missing.bin")]) == 2

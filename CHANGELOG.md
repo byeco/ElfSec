@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v1.4.1 — CI/Linux izolasyonu + Release yetkisi
+
+- `settings_store.machine_data_dir()` artık `ELFSEC_CONFIG_DIR` geçersiz kılmasına uyuyor; `ServiceRunner` yazma izni olmayan sistem dizininde kullanıcı dizinine düşüyor (Linux CI uyumu).
+- `test_win_service_and_plugin_mocked_ops` Windows ve Linux ayrımına uyumlu hale getirildi + çapraz platform tarayıcı/CLI testleri eklendi.
+- `.github/workflows/release.yml`: `permissions: contents: write` eklendi (GitHub Release 403 düzeltmesi), PyInstaller gizli importları ve `elfsec-browser-extension.zip` paketi eklendi.
+
 ## v1.4.0 — Tarayıcı Webmail + Masaüstü Mail Uygulamaları Desteği
 
 - **Tarayıcı Eklentisi (`extension/`, Manifest V3)**:

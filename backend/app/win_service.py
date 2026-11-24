@@ -249,7 +249,13 @@ class ServiceRunner:
         enable_mail: bool = True,
     ):
         self.data_dir = Path(data_dir) if data_dir else machine_data_dir()
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            from app.settings_store import default_user_config_path
+
+            self.data_dir = default_user_config_path().parent / "service_data"
+            self.data_dir.mkdir(parents=True, exist_ok=True)
         self.watch_dirs = (
             list(watch_dirs)
             if watch_dirs is not None

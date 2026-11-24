@@ -1,4 +1,4 @@
-# ElfSec Sistem Durum Çizelgesi (baz: v1.4.0)
+# ElfSec Sistem Durum Çizelgesi (baz: v1.4.1)
 
 > Tek exe: `elfsec.exe` (CLI + guard + web API). Web API opt-in'dir,
 > varsayılan localhost + stdlib-only (ek bağımlılık yok).

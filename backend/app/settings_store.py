@@ -50,6 +50,9 @@ class ConfigError(Exception):
 
 def machine_data_dir() -> Path:
     """Sistem/servis düzeyinde veri ve config dizini (ProgramData)."""
+    override = os.environ.get("ELFSEC_CONFIG_DIR", "").strip()
+    if override:
+        return Path(override) / "machine"
     if os.name == "nt":
         base = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
         return base / APP_NAME
