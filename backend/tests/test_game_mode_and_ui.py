@@ -637,7 +637,7 @@ def test_desktop_ui_error_paths_kontrol_and_quarantine_restore(monkeypatch, tmp_
         # Shutdown
         st_sd, _, raw_sd = _http_call(f"{base}/api/shutdown", method="POST", headers=hdr, body={})
         assert st_sd == 200 and json.loads(raw_sd)["ok"] is True
-        assert srv.stop_event.is_set()
+        assert srv.stop_event.wait(1.0) is True
     finally:
         srv.stop()
         settings_store.set_explicit(None)

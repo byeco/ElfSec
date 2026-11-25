@@ -647,8 +647,8 @@ class DesktopPanelServer:
                     return
 
                 if parsed.path == "/api/shutdown":
-                    self._send_json(200, {"ok": True})
                     panel.stop_event.set()
+                    self._send_json(200, {"ok": True})
                     return
 
                 self._send_json(404, {"ok": False, "error": "Bilinmeyen endpoint."})
