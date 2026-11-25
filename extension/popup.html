@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="color-scheme" content="light dark" />
-  <title>ElfSec Güvenlik Eklentisi</title>
+  <title>ElfSec</title>
   <link rel="stylesheet" href="shared.css" />
   <style>
     body {
@@ -402,6 +402,12 @@
       color: var(--bad);
     }
 
+    .scan-tag.ok {
+      background: var(--ok-soft);
+      border-color: rgba(16, 185, 129, 0.28);
+      color: var(--ok);
+    }
+
     .scan-reasons {
       margin: 8px 0 0;
       padding-left: 16px;
@@ -532,6 +538,24 @@
 
     .footer-link:hover { text-decoration: underline; }
     .footer-link:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+
+    .footer-brand-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: color 0.14s ease;
+    }
+
+    .footer-brand-link:hover {
+      color: var(--brand);
+      text-decoration: underline;
+    }
+
+    .footer-brand-link:focus-visible {
+      outline: none;
+      box-shadow: var(--focus);
+    }
   </style>
 </head>
 <body>
@@ -659,7 +683,7 @@
   </section>
 
   <footer class="footer">
-    <span><span data-i18n="footerLocal">%100 Yerel</span> · ElfSec Guard</span>
+    <a class="footer-brand-link" href="https://byeco.com.tr" target="_blank" rel="noopener noreferrer" data-i18n="footerCopyright" data-i18n-title="footerCopyrightTitle" title="© 2026 byeco. Tüm hakları saklıdır. Açık kaynaklı güvenlik sistemi (GNU GPL-3.0).">© 2026 byeco · Açık Kaynak</a>
     <button id="optionsBtn" class="footer-link" type="button" data-i18n="openSettings">Ayarlar ve Mağaza Bağlantısı</button>
   </footer>
 

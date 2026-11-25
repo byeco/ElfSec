@@ -24,28 +24,23 @@
 
 ### İndirme ve Kurulum
 
-#### Seçenek A — Tek Komutla Tam Windows Güvenlik Eklentisi Kurulumu (Önerilen)
+#### Seçenek A — Windows Kurulum Sihirbazı (`ElfSecSetup.exe` — Önerilen)
 
-1. [GitHub Releases](https://github.com/byeco/ElfSec/releases) sayfasından `elfsec.exe` dosyasını indirin (veya kaynak koddan `backend\scripts\build_exe.ps1` ile derleyin).
-2. PowerShell'i **Yönetici olarak çalıştırın** ve kurulum betiğini çalıştırın:
-   ```powershell
-   cd backend
-   powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
-   ```
-   Bu işlem otomatik olarak:
+1. Doğrudan **[ElfSecSetup.exe](https://github.com/byeco/ElfSec/releases/latest/download/ElfSecSetup.exe)** kurulum dosyasını ([GitHub Releases](https://github.com/byeco/ElfSec/releases)) indirin ve çift tıklayarak çalıştırın *(veya kaynak koddan `powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1` ile derleyin)*.
+2. Çerçevesiz grafiksel kurulum sihirbazı tek tıkla otomatik olarak:
    - `elfsec.exe` ve `extension\` klasörünü `C:\Program Files\ElfSec\` altına kurar,
    - `ElfSecGuard` Windows Servisini (SYSTEM yetkisinde İndirilenler + Outlook/Windows Mail ek önbelleği + opsiyonel IMAP koruyucusu) başlatır,
    - Windows Gezgini sağ-tık menüsünü (tüm dosyalar, klasörler, `.eml`, `.msg`) ve `elfsec://` protokolünü kaydeder,
    - Chrome, Edge, Brave ve Firefox Native Messaging Host (`com.elfsec.guard`) kayıtlarını ekler,
-   - Sistem Tepsisi + Pano koruma ajanını (`elfsec.exe agent --tray`) başlatır.
+   - Sistem Tepsisi + Pano koruma ajanını (`elfsec.exe agent --tray`) ve **ElfSec Güvenlik Merkezi** penceresini başlatır.
 
-   Kaldırmak için (Yönetici PowerShell):
-   ```powershell
-   cd backend
-   powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1
-   ```
-
-> **Alternatif (Inno Setup yükleyici):** `ISCC.exe installer\elfsec.iss` ile `installer\Output\ElfSecSetup.exe` kurulum paketi üretebilirsiniz. İmzalanmamış exe ilk açılışta Windows SmartScreen uyarısı verirse *"Ek bilgi → Yine de çalıştır"* seçilebilir.
+   > **Alternatif (Taşınabilir `elfsec.exe` / PowerShell):** Yalnızca tek çalıştırılabilir dosya kullanmak isterseniz Releases sayfasından `elfsec.exe` indirip Yönetici PowerShell ile kurabilirsiniz:
+   > ```powershell
+   > cd backend
+   > powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
+   > ```
+   > Kaldırmak için Windows *Ayarlar → Uygulamalar → ElfSec Güvenlik Sistemi* veya Yönetici PowerShell'de `powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1` çalıştırın.
+   > İmzalanmamış exe ilk açılışta Windows SmartScreen uyarısı verirse *"Ek bilgi → Yine de çalıştır"* seçilebilir.
 
 #### Seçenek B — Tarayıcı Webmail Eklentisini Yükleme (Chrome / Edge / Brave)
 
@@ -156,28 +151,23 @@ print(report["risk_level"], report["risk_score"], report["reasons"])
 
 ### Download & Installation
 
-#### Option A — One-Command Windows Security Extension Install (Recommended)
+#### Option A — Windows Graphical Installer (`ElfSecSetup.exe` — Recommended)
 
-1. Download `elfsec.exe` from [GitHub Releases](https://github.com/byeco/ElfSec/releases) (or build from source with `backend\scripts\build_exe.ps1`).
-2. Open PowerShell **as Administrator** and run:
-   ```powershell
-   cd backend
-   powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
-   ```
-   This automatically:
-   - Installs `elfsec.exe` and `extension\` into `C:\Program Files\ElfSec\`,
-   - Installs and starts the `ElfSecGuard` Windows Service (SYSTEM privilege — watches all users' Downloads + Outlook/Windows Mail attachment caches + optional IMAP),
-   - Registers Windows Explorer right-click menus (all files, folders, `.eml`, `.msg`) and the `elfsec://` URI protocol,
-   - Registers Native Messaging hosts (`com.elfsec.guard`) for Chrome, Edge, Brave, and Firefox,
-   - Launches the user-session System Tray + Clipboard + Service Alert Bridge (`elfsec.exe agent --tray`).
+1. Download **[ElfSecSetup.exe](https://github.com/byeco/ElfSec/releases/latest/download/ElfSecSetup.exe)** directly from [GitHub Releases](https://github.com/byeco/ElfSec/releases) *(or build from source with `powershell -ExecutionPolicy Bypass -File installer\build_installer.ps1`)*.
+2. Double-click the setup wizard to automatically:
+   - Install `elfsec.exe` and `extension\` into `C:\Program Files\ElfSec\`,
+   - Install and start the `ElfSecGuard` Windows Service (SYSTEM privilege — watches all users' Downloads + Outlook/Windows Mail attachment caches + optional IMAP),
+   - Register Windows Explorer right-click menus (all files, folders, `.eml`, `.msg`) and the `elfsec://` URI protocol,
+   - Register Native Messaging hosts (`com.elfsec.guard`) for Chrome, Edge, Brave, and Firefox,
+   - Launch the user-session System Tray + Clipboard + Service Alert Bridge (`elfsec.exe agent --tray`) and the **ElfSec Security Center** desktop window.
 
-   To uninstall (Administrator PowerShell):
-   ```powershell
-   cd backend
-   powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1
-   ```
-
-> **Installer alternative (Inno Setup):** Build `installer\Output\ElfSecSetup.exe` with `ISCC.exe installer\elfsec.iss`. Because `elfsec.exe` is currently unsigned, Windows SmartScreen may show a warning on first run → *"More info → Run anyway"*.
+   > **Alternative (Portable `elfsec.exe` / PowerShell):** If you prefer the standalone binary, download `elfsec.exe` from Releases and run in Administrator PowerShell:
+   > ```powershell
+   > cd backend
+   > powershell -ExecutionPolicy Bypass -File scripts\install_windows_plugin.ps1
+   > ```
+   > To uninstall, use Windows *Settings → Apps → ElfSec Güvenlik Sistemi* or run `powershell -ExecutionPolicy Bypass -File scripts\uninstall_windows_plugin.ps1`.
+   > Because the binary is currently unsigned, Windows SmartScreen may show a warning on first run → *"More info → Run anyway"*.
 
 #### Option B — Load the Browser Webmail Extension (Chrome / Edge / Brave)
 
@@ -300,12 +290,15 @@ backend/
       clipboard_guard.py     # ClickFix & phishing clipboard guard
   scripts/                   # install_windows_plugin.ps1 / uninstall_windows_plugin.ps1 / build_exe.ps1
   tests/                     # 194 pytest unit & integration tests
-installer/elfsec.iss         # Inno Setup Admin installer (ElfSecSetup.exe)
-.github/workflows/           # ci.yml (pytest/coverage/kontrol/ruff/pip-audit) & release.yml (elfsec.exe)
+installer/
+  setup_wizard_gui.py        # Frameless Windows setup wizard (ElfSecSetup.exe)
+  build_installer.ps1        # Builds installer\Output\ElfSecSetup.exe
+  elfsec.iss                 # Inno Setup Admin installer alternative
+.github/workflows/           # ci.yml (pytest/coverage/kontrol/ruff/pip-audit) & release.yml (ElfSecSetup.exe + elfsec.exe)
 ```
 
 ### Security Notes
 
 - **Zero API keys / local-only:** Email bodies, attachments, and clipboard content never leave your PC.
 - **Log privacy:** `guard_alerts.jsonl` and `triage --out` may contain email/file summaries; use `--redact` to mask PII (emails, IBAN, national IDs, card numbers) and `--retention-days` to prune old logs. Use `--webhook` only with trusted `https://` endpoints.
-- **Dependencies:** Pinned to 8 core packages in [backend/requirements.txt](file:///C:/Users/BYE/Desktop/ElfSec/backend/requirements.txt); checked with `pip-audit`, `ruff`, and Dependabot.
+- **Dependencies:** Pinned to 9 core packages in [backend/requirements.txt](backend/requirements.txt); checked with `pip-audit`, `ruff`, and Dependabot.

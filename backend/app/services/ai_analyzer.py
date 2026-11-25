@@ -197,6 +197,13 @@ def _check_url(url: str, R: dict | None = None) -> tuple[int, str | None]:
         return _hit("url_risky_ext", 20, f"Çalıştırılabilir/arsiv dosyasına link: {url}")
     if _mixed_script(host):
         return _hit("url_homoglif", 25, f"Karışık alfabe sahteciliği (homoglif): {url}")
+    try:
+        from app.verified_senders import verify_url
+
+        if verify_url(url).get("verified"):
+            return 0, None
+    except Exception:
+        pass
     if re.search(r"(login|signin|verify|account|update|secure|banking)", ul):
         return _hit("url_keyword", 8, f"Kimlik-avı anahtar kelimeli URL: {url}")
     return 0, None

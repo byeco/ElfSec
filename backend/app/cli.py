@@ -1384,6 +1384,50 @@ def cmd_verified(args: argparse.Namespace) -> int:
     return 2
 
 
+def cmd_ui(args: argparse.Namespace) -> int:
+    """Modern Masaüstü Güvenlik Panelini (sıfır CMD) başlatır."""
+    from app.desktop_ui import run_desktop_panel
+
+    return run_desktop_panel(
+        port=int(getattr(args, "port", 0) or 0),
+        open_browser=not bool(getattr(args, "no_browser", False)),
+    )
+
+
+def cmd_game_mode(args: argparse.Namespace) -> int:
+    """Oyun modu (ultra-düşük kaynak motoru) yönetimi."""
+    from app.game_mode import GameModeController
+
+    ctrl = GameModeController()
+    op = getattr(args, "gm_action", "status")
+    try:
+        if op == "status":
+            st = ctrl.evaluate()
+        elif op in ("auto", "on", "off"):
+            st = ctrl.set_mode(op)
+        elif op == "add":
+            st = ctrl.add_custom_game(getattr(args, "exe", ""))
+        elif op == "remove":
+            st = ctrl.remove_custom_game(getattr(args, "exe", ""))
+        else:
+            print(f"HATA: bilinmeyen işlem: {op}", file=sys.stderr)
+            return 2
+    except ValueError as e:
+        print(f"HATA: {e}", file=sys.stderr)
+        return 2
+
+    if getattr(args, "json", False):
+        emit(st, args)
+    else:
+        durum = "AKTİF" if st.get("active") else "BEKLEMEDE"
+        proc = f" ({st.get('process')})" if st.get("process") else ""
+        print(
+            f"Oyun Modu: {st.get('mode')} | Durum: {durum}{proc} | "
+            f"CPU: {st.get('cpu_priority')} | Özel Oyunlar: {', '.join(st.get('custom_games') or []) or '(yok)'}"
+        )
+    return 0
+
+
 # ---------- parser ----------
 
 def _add_common(p: argparse.ArgumentParser, with_fail: bool = False) -> None:
@@ -2073,6 +2117,38 @@ def build_parser() -> argparse.ArgumentParser:
     vf_r.add_argument("brand_id")
     vf_r.set_defaults(func=cmd_verified)
     vfsub.add_parser("reset", help="Varsayılan listeye sıfırla").set_defaults(func=cmd_verified)
+
+    ui_p = sub.add_parser("ui", help="Modern Masaüstü Güvenlik Panelini aç")
+    ui_p.add_argument("--port", type=int, default=0)
+    ui_p.add_argument("--no-browser", action="store_true")
+    ui_p.add_argument("--console", action="store_true")
+    ui_p.set_defaults(func=cmd_ui)
+
+    gm_p = sub.add_parser("game-mode", help="Oyun Modu (ultra-düşük kaynak motoru) yönetimi")
+    gm_sub = gm_p.add_subparsers(dest="gm_action", required=True)
+    gm_st = gm_sub.add_parser("status", help="Oyun modu durumunu göster")
+    gm_st.add_argument("--json", action="store_true")
+    gm_st.add_argument("--out", default="")
+    gm_st.set_defaults(func=cmd_game_mode)
+    for m_name, m_help in (
+        ("auto", "Oyun algılanınca otomatik düşük güç"),
+        ("on", "Oyun modunu zorla aç"),
+        ("off", "Oyun modunu kapat"),
+    ):
+        sp = gm_sub.add_parser(m_name, help=m_help)
+        sp.add_argument("--json", action="store_true")
+        sp.add_argument("--out", default="")
+        sp.set_defaults(func=cmd_game_mode)
+    gm_add = gm_sub.add_parser("add", help="Özel oyun .exe ekle")
+    gm_add.add_argument("exe")
+    gm_add.add_argument("--json", action="store_true")
+    gm_add.add_argument("--out", default="")
+    gm_add.set_defaults(func=cmd_game_mode)
+    gm_rm = gm_sub.add_parser("remove", help="Özel oyun .exe çıkar")
+    gm_rm.add_argument("exe")
+    gm_rm.add_argument("--json", action="store_true")
+    gm_rm.add_argument("--out", default="")
+    gm_rm.set_defaults(func=cmd_game_mode)
     return p
 
 

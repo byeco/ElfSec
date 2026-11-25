@@ -270,6 +270,17 @@ document.addEventListener("DOMContentLoaded", () => {
       ph.textContent = "Phishing";
       tags.appendChild(ph);
     }
+    if (score < 25 && Array.isArray(rep.verified_urls) && rep.verified_urls.length) {
+      const seenLabels = new Set();
+      rep.verified_urls.forEach((v) => {
+        if (!v || !v.label || seenLabels.has(v.label) || seenLabels.size >= 2) return;
+        seenLabels.add(v.label);
+        const okTag = document.createElement("span");
+        okTag.className = "scan-tag ok";
+        okTag.textContent = `✓ ${v.label}`;
+        tags.appendChild(okTag);
+      });
+    }
 
     const ul = document.createElement("ul");
     ul.className = "scan-reasons";

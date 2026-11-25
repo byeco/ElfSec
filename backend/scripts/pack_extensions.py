@@ -16,8 +16,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import zipfile
 from pathlib import Path
+
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+from app.native_host import DEV_UNPACKED_PUBLIC_KEY
 
 EXCLUDE_DIRS = {"__pycache__", "node_modules", ".git", ".github", ".idea", ".vscode"}
 EXCLUDE_NAMES = {"STORE_LISTING.md", ".DS_Store", "Thumbs.db"}
@@ -75,7 +82,7 @@ def _build_manifest_for_target(base_manifest: dict, target: str) -> dict:
         mf.pop("key", None)
         mf["background"] = {"scripts": ["fallback_analyzer.js", "background.js"]}
     elif target == "unpacked":
-        pass
+        mf.setdefault("key", DEV_UNPACKED_PUBLIC_KEY)
     else:
         raise ValueError(f"Bilinmeyen hedef: {target}")
     return mf

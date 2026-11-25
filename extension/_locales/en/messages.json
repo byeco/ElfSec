@@ -1,9 +1,9 @@
 {
   "appName": {
-    "message": "ElfSec Security Extension"
+    "message": "ElfSec"
   },
   "appDesc": {
-    "message": "100% local phishing, brand impersonation, link hover, and download protection for Gmail, Outlook Web, Yahoo, Yandex, iCloud, and Proton Mail."
+    "message": "Open-source, local phishing, brand impersonation, link, and download security guard for webmail."
   },
   "ctxScanSelection": {
     "message": "Scan Selected Text with ElfSec"
@@ -119,8 +119,17 @@
   "openSettings": {
     "message": "Settings & Store Link"
   },
-  "footerLocal": {
-    "message": "100% Local"
+  "openSourceBadge": {
+    "message": "Open Source"
+  },
+  "openSourceChip": {
+    "message": "Open Source · GPL-3.0"
+  },
+  "footerCopyright": {
+    "message": "© 2026 byeco · Open Source"
+  },
+  "footerCopyrightTitle": {
+    "message": "© 2026 byeco. All rights reserved. Open-source security system (GNU GPL-3.0)."
   },
   "riskLow": {
     "message": "Low"
@@ -159,7 +168,7 @@
     "message": "Privacy & About"
   },
   "privacyNote": {
-    "message": "All analysis runs 100% locally on your device. No data is ever sent to external servers or clouds."
+    "message": "All analysis runs directly on your device. No data is ever sent to external servers or clouds."
   },
   "modWebmailTitle": {
     "message": "Webmail automatic shield"
@@ -205,6 +214,9 @@
   },
   "nativeTestBtn": {
     "message": "Test Connection"
+  },
+  "nativeDownloadBtn": {
+    "message": "Download ElfSecSetup.exe"
   },
   "copyCmdBtn": {
     "message": "Copy Command"
@@ -260,8 +272,14 @@
   "navAria": {
     "message": "Settings categories"
   },
-  "sideOfflineBadge": {
-    "message": "100% Offline Analysis"
+  "sideCopyright": {
+    "message": "© 2026 byeco · All rights reserved"
+  },
+  "copyrightHeading": {
+    "message": "© 2026 byeco · All rights reserved."
+  },
+  "copyrightDesc": {
+    "message": "ElfSec is an open-source security system developed under the GNU GPL-3.0 license."
   },
   "masterToggleAria": {
     "message": "Toggle global protection"
@@ -408,7 +426,7 @@
     "message": "(no subject)"
   },
   "pillarLocalTitle": {
-    "message": "100% Local Analysis"
+    "message": "On-Device Analysis"
   },
   "pillarLocalDesc": {
     "message": "Email, link, and download checks execute directly on your device."
@@ -469,5 +487,17 @@
   },
   "toastNativeFallback": {
     "message": "Desktop host not found — fallback engine active"
+  },
+  "rateTitle": {
+    "message": "Enjoying ElfSec?"
+  },
+  "rateDesc": {
+    "message": "Support free, open-source development by rating us in the store or starring the project on GitHub."
+  },
+  "rateStoreBtn": {
+    "message": "Rate in Store"
+  },
+  "rateGithubBtn": {
+    "message": "Star on GitHub"
   }
 }

@@ -155,6 +155,13 @@ def test_extension_icons_and_locales_complete():
     tr_msg = json.loads((ext_dir / "_locales" / "tr" / "messages.json").read_text(encoding="utf-8"))
     en_msg = json.loads((ext_dir / "_locales" / "en" / "messages.json").read_text(encoding="utf-8"))
     assert set(tr_msg) == set(en_msg)
+    assert tr_msg["appName"]["message"] == "ElfSec"
+    assert en_msg["appName"]["message"] == "ElfSec"
+    assert len(en_msg["appDesc"]["message"]) <= 132
+    assert len(tr_msg["appDesc"]["message"]) <= 132
+    for desc in (en_msg["appDesc"]["message"], tr_msg["appDesc"]["message"]):
+        assert "Gmail, Outlook" not in desc
+        assert "Proton" not in desc
     assert len(tr_msg) >= 40
     for key in tr_msg:
         assert str(tr_msg[key].get("message", "")).strip()
@@ -191,3 +198,42 @@ def test_extension_js_syntax_and_fallback_behavior():
     assert any("Makrolu Office" in r for r in data["macro"]["reasons"])
     assert data["cf"]["clickfix_detected"] is True
     assert data["dl"]["risk_level"] in ("HIGH", "CRITICAL")
+
+
+def test_extension_fallback_verifies_gov_and_known_org_urls():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node kurulu değil")
+
+    fb_path = (Path(__file__).resolve().parents[2] / "extension" / "fallback_analyzer.js").as_posix()
+    script = (
+        f"const fb = require({json.dumps(fb_path)});"
+        "const out = {"
+        "  gib: fb.checkUrl('https://gib.gov.tr/giris'),"
+        "  usaGov: fb.checkUrl('https://www.usa.gov'),"
+        "  githubRepo: fb.checkUrl('https://github.com/byeco/ElfSec'),"
+        "  githubLogin: fb.checkUrl('https://github.com/login'),"
+        "  ghPages: fb.checkUrl('https://attacker.github.io/login'),"
+        "  govEvil: fb.checkUrl('https://gov.tr.evil.com'),"
+        "  atTrick: fb.checkUrl('https://github.com@evil.com'),"
+        "  httpGov: fb.checkUrl('http://gib.gov.tr'),"
+        "  ghExe: fb.checkUrl('https://github.com/x/app.exe'),"
+        "  govSender: fb.verifySender('Gelir İdaresi <bilgi@gib.gov.tr>', 'Bildirim')"
+        "};"
+        "console.log(JSON.stringify(out));"
+    )
+    res = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True)
+    data = json.loads(res.stdout)
+
+    assert data["gib"]["verified"] is True and data["gib"]["pts"] == 0
+    assert data["gib"]["verifiedCategory"] == "OFFICIAL_GOV"
+    assert data["usaGov"]["verified"] is True and data["usaGov"]["pts"] == 0
+    assert data["githubRepo"]["verified"] is True and data["githubRepo"]["pts"] == 0
+    assert data["githubLogin"]["verified"] is True and data["githubLogin"]["pts"] == 0
+
+    assert data["ghPages"]["verified"] is False and data["ghPages"]["pts"] > 0
+    assert data["govEvil"]["verified"] is False
+    assert data["atTrick"]["verified"] is False and data["atTrick"]["pts"] >= 15
+    assert data["httpGov"]["verified"] is False
+    assert data["ghExe"]["verified"] is False and data["ghExe"]["pts"] >= 20
+    assert data["govSender"]["status"] == "VERIFIED_DOMAIN"

@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearConfirmBar = $("clearConfirmBar");
   const clearYesBtn = $("clearYesBtn");
   const clearNoBtn = $("clearNoBtn");
+  const rateStoreLink = $("rateStoreLink");
   const elfToast = $("elfToast");
 
   const navLinks = Array.from(document.querySelectorAll(".nav-link"));
@@ -95,6 +96,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const extId = (chrome.runtime && chrome.runtime.id) || "jkmbfppdffpiodlmikbdfdihdkejcfjj";
   extIdBadge.textContent = extId;
   registerCmd.textContent = `elfsec.exe browser register --extension-id ${extId}`;
+
+  if (rateStoreLink) {
+    const ua = (navigator && navigator.userAgent) || "";
+    if (ua.includes("Firefox/")) {
+      rateStoreLink.href = "https://addons.mozilla.org/firefox/addon/elfsec-guard/reviews/";
+    } else if (ua.includes("Edg/")) {
+      rateStoreLink.href = `https://microsoftedge.microsoft.com/addons/detail/${extId}`;
+    } else {
+      rateStoreLink.href = `https://chromewebstore.google.com/detail/${extId}/reviews`;
+    }
+  }
 
   try {
     optVersion.textContent = chrome.runtime.getManifest().version;

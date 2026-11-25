@@ -847,13 +847,16 @@ def _check_win(root: Path) -> list[dict]:
         buf.seek(0)
         decoded = read_native_message(buf)
         pong = handle_native_request(decoded or {})
-        phish = handle_native_request({
-            "action": "analyze_email",
-            "provider": "gmail",
-            "subject": "Hesabiniz kapanacak!",
-            "sender": "Destek <destek@gmail.com>",
-            "body": "Hemen tikla http://evil.tk/verify sifrenizi gonderin",
-        })
+        phish = handle_native_request(
+            {
+                "action": "analyze_email",
+                "provider": "gmail",
+                "subject": "Hesabiniz kapanacak!",
+                "sender": "Destek <destek@gmail.com>",
+                "body": "Hemen tikla http://evil.tk/verify sifrenizi gonderin",
+            },
+            log_alerts=False,
+        )
         ok_nm = bool(pong.get("ok") and phish.get("ok") and phish.get("risk_score", 0) >= 50)
         out.append(_bulgu("WIN-09", "WIN", "Tarayıcı Native Messaging analiz köprüsü",
                           "PASS" if ok_nm else "FAIL",
@@ -878,21 +881,27 @@ def _check_win(root: Path) -> list[dict]:
                           "v1.3.0", "Yönetici kurulum/kaldırma betikleri bulunmalı."))
         try:
             import json as _json
-            from app.native_host import DEFAULT_EXTENSION_ID, derive_chrome_extension_id
+            from app.native_host import (
+                DEFAULT_EXTENSION_ID,
+                DEV_UNPACKED_PUBLIC_KEY,
+                derive_chrome_extension_id,
+            )
 
             mf_path = root / "extension" / "manifest.json"
             fb_path = root / "extension" / "fallback_analyzer.js"
             mf = _json.loads(mf_path.read_text(encoding="utf-8"))
-            eid = derive_chrome_extension_id(mf["key"])
+            eid = derive_chrome_extension_id(DEV_UNPACKED_PUBLIC_KEY)
             ok_ext = (
-                eid == DEFAULT_EXTENSION_ID
+                "key" not in mf
+                and mf.get("manifest_version") == 3
+                and eid == DEFAULT_EXTENSION_ID
                 and fb_path.exists()
                 and any("mail.google.com" in m for cs in mf.get("content_scripts", []) for m in cs.get("matches", []))
             )
             out.append(_bulgu("WIN-10", "WIN", "Tarayıcı MV3 eklentisi + deterministik ID",
                               "PASS" if ok_ext else "FAIL",
-                              f"id={eid}",
-                              "v1.4.0", "extension/manifest.json anahtarı DEFAULT_EXTENSION_ID ile eşleşmeli."))
+                              f"id={eid} store_key_clean={'key' not in mf}",
+                              "v1.4.0", "extension/manifest.json mağaza uyumlu olmalı ve geliştirici anahtarı DEFAULT_EXTENSION_ID ile eşleşmeli."))
         except Exception as e:
             out.append(_bulgu("WIN-10", "WIN", "Tarayıcı MV3 eklentisi", "FAIL", str(e), "v1.4.0", "extension/ dosyaları geçerli olmalı."))
         req_store = [

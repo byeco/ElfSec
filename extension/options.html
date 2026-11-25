@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="color-scheme" content="light dark" />
-  <title data-i18n="optTitle">ElfSec Ayarlar</title>
+  <title>ElfSec</title>
   <link rel="stylesheet" href="shared.css" />
   <link rel="stylesheet" href="options.css" />
 </head>
@@ -19,7 +19,7 @@
           <h1 data-i18n="optTitle">ElfSec Ayarlar</h1>
           <small>
             <span class="ver-pill">v<span id="optVersion">1.6.0</span></span>
-            <span data-i18n="footerLocal">%100 Yerel</span>
+            <span data-i18n="openSourceBadge">Açık Kaynak</span>
           </small>
         </div>
       </div>
@@ -68,10 +68,10 @@
         </a>
       </nav>
 
-      <div class="side-seal">
-        <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
-        <span data-i18n="sideOfflineBadge">%100 Çevrimdışı Analiz</span>
-      </div>
+      <a class="side-seal side-seal-link" href="https://byeco.com.tr" target="_blank" rel="noopener noreferrer">
+        <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 9.4a3.6 3.6 0 1 0 0 5.2"></path></svg>
+        <span data-i18n="sideCopyright">© 2026 byeco · Tüm hakları saklıdır</span>
+      </a>
     </aside>
 
     <!-- ANA İÇERİK -->
@@ -87,11 +87,11 @@
           </div>
           <div class="hero-copy">
             <h2 id="heroMasterTitle" data-i18n="protectionActive">Koruma Aktif</h2>
-            <p data-i18n="privacyNote">Tüm analiz %100 cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez.</p>
+            <p data-i18n="privacyNote">Tüm analiz doğrudan cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez.</p>
             <div class="hero-chips">
               <span id="heroShieldChip" class="hero-chip ok">4/4 Kalkan</span>
               <span id="heroNativeChip" class="hero-chip warn" data-i18n="statusChecking">Kontrol ediliyor</span>
-              <span class="hero-chip ok" data-i18n="footerLocal">%100 Yerel</span>
+              <a class="hero-chip ok hero-chip-link" href="https://github.com/byeco/ElfSec" target="_blank" rel="noopener noreferrer" data-i18n="openSourceChip">Açık Kaynak · GPL-3.0</a>
             </div>
           </div>
         </div>
@@ -284,6 +284,10 @@
           </div>
           <div class="native-actions">
             <span id="nativeCardPill" class="elf-pill warn" data-i18n="statusChecking">Kontrol ediliyor</span>
+            <a class="elf-btn elf-btn-primary btn-compact" href="https://github.com/byeco/ElfSec/releases/latest/download/ElfSecSetup.exe" target="_blank" rel="noopener noreferrer">
+              <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span data-i18n="nativeDownloadBtn">ElfSecSetup.exe İndir</span>
+            </a>
           </div>
         </div>
 
@@ -510,14 +514,14 @@
             <h2 data-i18n="aboutTitle">Gizlilik Garantisi ve Desteklenen Sağlayıcılar</h2>
           </div>
         </div>
-        <p class="card-desc" data-i18n="privacyNote">Tüm analiz %100 cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez.</p>
+        <p class="card-desc" data-i18n="privacyNote">Tüm analiz doğrudan cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez.</p>
 
         <div class="pillar-grid">
           <div class="pillar-card">
             <div class="pillar-ico" aria-hidden="true">
               <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg>
             </div>
-            <strong data-i18n="pillarLocalTitle">%100 Yerel Analiz</strong>
+            <strong data-i18n="pillarLocalTitle">Cihaz İçi Analiz</strong>
             <small data-i18n="pillarLocalDesc">E-posta, bağlantı ve indirme denetimleri doğrudan cihazınızda çalışır.</small>
           </div>
           <div class="pillar-card">
@@ -564,6 +568,49 @@
           </div>
         </div>
       </section>
+
+      <!-- PUANLAMA & DESTEK KARTI -->
+      <section class="rate-card" aria-labelledby="rateHeading">
+        <div class="rate-copy">
+          <div class="rate-stars" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+          </div>
+          <h3 id="rateHeading" data-i18n="rateTitle">ElfSec'i beğendiniz mi?</h3>
+          <p data-i18n="rateDesc">Açık kaynaklı ve ücretsiz geliştirmeye devam edebilmemiz için mağazada 5 yıldız vererek veya GitHub'da yıldızlayarak destek olabilirsiniz.</p>
+        </div>
+        <div class="rate-actions">
+          <a id="rateStoreLink" class="elf-btn elf-btn-primary" href="https://chromewebstore.google.com" target="_blank" rel="noopener noreferrer">
+            <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2.4 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3l-5.9 3.1 1.2-6.5L2.5 9.3l6.6-.9L12 2.4Z"></path></svg>
+            <span data-i18n="rateStoreBtn">Mağazada Puanla</span>
+          </a>
+          <a class="elf-btn elf-btn-secondary" href="https://github.com/byeco/ElfSec" target="_blank" rel="noopener noreferrer">
+            <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-4 3 4 3"></path><path d="m16 9 4 3-4 3"></path><path d="m13.5 6-3 12"></path></svg>
+            <span data-i18n="rateGithubBtn">GitHub'da Yıldızla</span>
+          </a>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <div class="page-footer-copy">
+          <strong><a class="footer-copy-link" href="https://byeco.com.tr" target="_blank" rel="noopener noreferrer" data-i18n="copyrightHeading">© 2026 byeco · Tüm hakları saklıdır.</a></strong>
+          <small data-i18n="copyrightDesc">ElfSec, GNU GPL-3.0 lisansı altında geliştirilen açık kaynaklı bir güvenlik sistemidir.</small>
+        </div>
+        <div class="page-footer-badges">
+          <a class="legal-pill legal-pill-link" href="https://byeco.com.tr" target="_blank" rel="noopener noreferrer">
+            <span>byeco.com.tr</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"></path></svg>
+          </a>
+          <a class="legal-pill is-accent legal-pill-link" href="https://github.com/byeco/ElfSec" target="_blank" rel="noopener noreferrer">
+            <span>github.com/byeco/elfsec</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"></path></svg>
+          </a>
+          <span class="legal-pill">GNU GPL-3.0</span>
+        </div>
+      </footer>
     </main>
   </div>
 

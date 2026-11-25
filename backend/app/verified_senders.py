@@ -16,9 +16,96 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from pathlib import Path
+from urllib.parse import urlparse
 
 APP_NAME = "ElfSec"
+
+OFFICIAL_TLD_RULES: tuple[tuple[str, str, str], ...] = (
+    (".gov.tr", "OFFICIAL_GOV", "T.C. Resmi Devlet Kurumu (.gov.tr)"),
+    (".bel.tr", "OFFICIAL_GOV", "T.C. Belediye Kurumu (.bel.tr)"),
+    (".pol.tr", "OFFICIAL_GOV", "T.C. Emniyet Genel Müdürlüğü (.pol.tr)"),
+    (".tsk.tr", "OFFICIAL_GOV", "Türk Silahlı Kuvvetleri (.tsk.tr)"),
+    (".kep.tr", "OFFICIAL_GOV", "Kayıtlı Elektronik Posta (.kep.tr)"),
+    (".edu.tr", "OFFICIAL_EDU", "T.C. Yükseköğretim Kurumu (.edu.tr)"),
+    (".k12.tr", "OFFICIAL_EDU", "T.C. Millî Eğitim Kurumu (.k12.tr)"),
+    (".gov.uk", "OFFICIAL_GOV", "Resmi Kamu Kurumu (.gov.uk)"),
+    (".gov.au", "OFFICIAL_GOV", "Resmi Kamu Kurumu (.gov.au)"),
+    (".gc.ca", "OFFICIAL_GOV", "Resmi Kamu Kurumu (.gc.ca)"),
+    (".gouv.fr", "OFFICIAL_GOV", "Resmi Kamu Kurumu (.gouv.fr)"),
+    (".europa.eu", "OFFICIAL_GOV", "Avrupa Birliği Kurumu (.europa.eu)"),
+    (".gov", "OFFICIAL_GOV", "Resmi Devlet Kurumu (.gov)"),
+)
+
+KNOWN_OFFICIAL_DOMAINS: dict[str, str] = {
+    "github.com": "GitHub",
+    "gitlab.com": "GitLab",
+    "bitbucket.org": "Bitbucket",
+    "stackoverflow.com": "Stack Overflow",
+    "npmjs.com": "npm",
+    "pypi.org": "PyPI",
+    "mozilla.org": "Mozilla",
+    "wikipedia.org": "Wikipedia",
+    "wikimedia.org": "Wikimedia",
+    "cloudflare.com": "Cloudflare",
+    "openai.com": "OpenAI",
+    "anthropic.com": "Anthropic",
+    "linkedin.com": "LinkedIn",
+    "x.com": "X",
+    "twitter.com": "Twitter / X",
+    "zoom.us": "Zoom",
+    "slack.com": "Slack",
+    "adobe.com": "Adobe",
+    "nvidia.com": "NVIDIA",
+    "spotify.com": "Spotify",
+    "byeco.com.tr": "byeco",
+    "turkishairlines.com": "Türk Hava Yolları",
+    "thy.com": "Türk Hava Yolları",
+    "flypgs.com": "Pegasus",
+    "sahibinden.com": "sahibinden.com",
+    "n11.com": "n11",
+    "migros.com.tr": "Migros",
+    "getir.com": "Getir",
+    "yemeksepeti.com": "Yemeksepeti",
+    "halkbank.com.tr": "Halkbank",
+    "vakifbank.com.tr": "VakıfBank",
+    "qnbfinansbank.com": "QNB",
+    "qnb.com.tr": "QNB",
+    "denizbank.com": "DenizBank",
+    "enpara.com": "Enpara.com",
+    "ing.com.tr": "ING Türkiye",
+    "teb.com.tr": "TEB",
+}
+
+USER_CONTENT_HOSTS: tuple[str, ...] = (
+    "github.io",
+    "githubusercontent.com",
+    "sites.google.com",
+    "docs.google.com",
+    "drive.google.com",
+    "forms.gle",
+    "storage.googleapis.com",
+    "onedrive.live.com",
+    "sharepoint.com",
+    "web.app",
+    "firebaseapp.com",
+    "pages.dev",
+    "vercel.app",
+    "netlify.app",
+    "workers.dev",
+    "blogspot.com",
+    "wordpress.com",
+    "wixsite.com",
+    "weebly.com",
+)
+
+_URL_SHORTENERS = ("bit.ly", "tinyurl", "t.co", "goo.gl", "is.gd", "cutt.ly", "rebrand.ly", "shorturl")
+_URL_RISKY_EXT = (
+    ".exe", ".msi", ".scr", ".com", ".pif", ".cpl", ".dll", ".iso", ".img", ".jar",
+    ".ps1", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".hta", ".reg", ".lnk",
+    ".zip", ".rar", ".7z",
+)
 
 DEFAULT_VERIFIED_SENDERS: dict[str, dict] = {
     "apple": {
@@ -319,7 +406,7 @@ def _parse_sender(sender: str) -> tuple[str, str, str]:
     return disp.lower(), email_addr, domain
 
 
-def _domain_matches(domain: str, official_domains: list[str]) -> bool:
+def _domain_matches(domain: str, official_domains: list[str] | tuple[str, ...]) -> bool:
     if not domain:
         return False
     d = domain.lower().strip(".")
@@ -328,6 +415,110 @@ def _domain_matches(domain: str, official_domains: list[str]) -> bool:
         if d == od_l or d.endswith("." + od_l):
             return True
     return False
+
+
+def _match_official_tld(domain: str) -> tuple[str, str, str] | None:
+    d = (domain or "").lower().strip(".")
+    if not d:
+        return None
+    for suffix, category, label in OFFICIAL_TLD_RULES:
+        if d.endswith(suffix) and len(d) > len(suffix):
+            return suffix, category, label
+    return None
+
+
+def _has_unsafe_host(host: str) -> bool:
+    d = (host or "").lower().strip(".")
+    if not d or "." not in d:
+        return True
+    if d.startswith("xn--") or ".xn--" in d:
+        return True
+    if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", d):
+        return True
+    scripts = set()
+    for ch in d:
+        if ch in (".", "-") or ch.isdigit():
+            continue
+        name = unicodedata.name(ch, "")
+        if not name:
+            return True
+        if name.startswith("LATIN"):
+            scripts.add("latin")
+        elif name.startswith("CYRILLIC"):
+            scripts.add("cyrillic")
+        elif name.startswith("GREEK"):
+            scripts.add("greek")
+        elif name.startswith(("ARMENIAN", "HEBREW", "ARABIC")):
+            scripts.add("other")
+    return len(scripts) > 1
+
+
+def verify_domain(host: str, registry: dict | None = None) -> dict:
+    """Alan adının bilinen resmi kuruluş veya devlet/eğitim kurumu olup olmadığını doğrular."""
+    d = (host or "").lower().strip().rstrip(".")
+    empty = {"verified": False, "category": "", "label": "", "detail": ""}
+    if _has_unsafe_host(d) or _domain_matches(d, USER_CONTENT_HOSTS):
+        return empty
+
+    reg = registry if registry is not None else DEFAULT_VERIFIED_SENDERS
+    for bid, info in reg.items():
+        official_domains = [str(x).lower() for x in info.get("domains", []) if x]
+        if _domain_matches(d, official_domains):
+            label = str(info.get("label") or bid)
+            return {
+                "verified": True,
+                "category": "VERIFIED_ORG",
+                "label": label,
+                "detail": f"Doğrulanmış resmi kuruluş: {label} ({d})",
+            }
+
+    for official_dom, label in KNOWN_OFFICIAL_DOMAINS.items():
+        if d == official_dom or d.endswith("." + official_dom):
+            return {
+                "verified": True,
+                "category": "VERIFIED_ORG",
+                "label": label,
+                "detail": f"Doğrulanmış resmi kuruluş: {label} ({d})",
+            }
+
+    tld_hit = _match_official_tld(d)
+    if tld_hit:
+        _, category, label = tld_hit
+        return {
+            "verified": True,
+            "category": category,
+            "label": label,
+            "detail": f"{label} ({d})",
+        }
+
+    return empty
+
+
+def verify_url(url: str, registry: dict | None = None) -> dict:
+    """HTTPS URL'sinin güvenli ve bilinen resmi bir kurum/kuruluş adresi olup olmadığını doğrular."""
+    raw = str(url or "").strip()
+    empty = {"verified": False, "category": "", "label": "", "detail": "", "url": raw, "host": ""}
+    if not raw or "@" in raw:
+        return empty
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return empty
+    if parsed.scheme.lower() != "https" or parsed.username or parsed.password:
+        return empty
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if not host:
+        return empty
+    ul = raw.lower()
+    if any(s in ul for s in _URL_SHORTENERS):
+        return empty
+    path_low = (parsed.path or "").lower().rstrip("/")
+    if path_low.endswith(_URL_RISKY_EXT) or ul.rstrip("/").endswith(_URL_RISKY_EXT):
+        return empty
+    res = verify_domain(host, registry=registry)
+    if not res["verified"]:
+        return {"verified": False, "category": "", "label": "", "detail": "", "url": raw, "host": host}
+    return {**res, "url": raw, "host": host}
 
 
 def _extract_domain(addr: str) -> str:
@@ -439,6 +630,44 @@ def verify_sender(
                         f"({', '.join(official_domains[:3])}) değil ({domain})!"
                     ),
                 }
+
+    tld_hit = _match_official_tld(domain)
+    if tld_hit:
+        _, _, label = tld_hit
+        reply_mismatch = bool(reply_dom and not _domain_matches(reply_dom, [domain]) and not _match_official_tld(reply_dom))
+        if auth_fail or reply_mismatch:
+            why = "SPF/DKIM/DMARC=fail" if auth_fail else f"Reply-To ({reply_dom}) resmi alan adına ait değil"
+            return {
+                "status": "SPOOFED",
+                "brand_id": domain,
+                "brand": label,
+                "matched_address": email_addr,
+                "exact_official_address": False,
+                "official_domains": [domain],
+                "auth_passed": False,
+                "detail": f"Resmi kurum adresi taklit edilmiş ({email_addr}): {why}!",
+            }
+        if auth_pass:
+            return {
+                "status": "VERIFIED_STRONG",
+                "brand_id": domain,
+                "brand": label,
+                "matched_address": email_addr,
+                "exact_official_address": False,
+                "official_domains": [domain],
+                "auth_passed": True,
+                "detail": f"Doğrulanmış resmi kurum ({domain}) + SPF/DKIM/DMARC geçerli.",
+            }
+        return {
+            "status": "VERIFIED_DOMAIN",
+            "brand_id": domain,
+            "brand": label,
+            "matched_address": email_addr,
+            "exact_official_address": False,
+            "official_domains": [domain],
+            "auth_passed": False,
+            "detail": f"Resmi kurum alan adı eşleşti ({domain}).",
+        }
 
     return {
         "status": "UNKNOWN",

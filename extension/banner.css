@@ -489,6 +489,30 @@ a.elfsec-sus-link {
   color: var(--e-muted);
 }
 
+#elfsec-link-tooltip.elfsec-tip-verified {
+  border-color: rgba(16, 185, 129, 0.52);
+  border-left: 4px solid var(--e-brand);
+}
+
+#elfsec-link-tooltip .elfsec-tip-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#elfsec-link-tooltip .elfsec-tip-verified-badge svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
 #elfsec-link-tooltip.elfsec-tip-bad {
   background: #fff1f2;
   color: #7f1d1d;

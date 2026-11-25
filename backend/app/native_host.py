@@ -28,6 +28,14 @@ from app.watchers.clipboard_guard import analyze_clipboard_text
 
 NATIVE_HOST_NAME = "com.elfsec.guard"
 DEFAULT_EXTENSION_ID = "jkmbfppdffpiodlmikbdfdihdkejcfjj"
+DEV_UNPACKED_PUBLIC_KEY = (
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlv1uyGqqLdCcFb4CZHbjYl/QVBSr9QhA"
+    "18qMIJK5KDM1F404eFLS2WrBcZpxwFxQudsO1/OSLpO1qVl9ypdAAv71PVhnboM4WE01FjjDY5a"
+    "mtZg94d3D2FLfRXtBT9DM/VflqALRJCFT4EYUmzdGFrx3Qwfxy+M6sK77dfiIGU/vtPRS5+Qb8a"
+    "9e/I+FAU2ys/oqpPQVRi3tz1S2wFHVEiiMQ1Ta23ehl88ysTWT9c7bzH2Gn/iKsVmZM2Qrj7dS9"
+    "rrtMqA0GDoDnpqmlZGzaFiU1jywbxBzAR3fWT7tGLZAoBmd6MLxBiVslUxxmEatZAMc8yAJPXhJ"
+    "unbHZdTgEQIDAQAB"
+)
 FIREFOX_EXTENSION_ID = "elfsec-guard@elfsec.local"
 MAX_NATIVE_MSG_BYTES = 1_048_576  # 1 MB
 MAX_SCAN_PATH_CHARS = 4096
@@ -98,6 +106,8 @@ def _append_webmail_alert(report: dict, alert_log: str = "") -> None:
     if report.get("risk_level") not in ("HIGH", "CRITICAL"):
         return
     try:
+        from app.privacy import load_privacy_settings, sanitize_alert_for_storage
+
         lp = Path(alert_log) if alert_log else _default_alert_log_path()
         lp.parent.mkdir(parents=True, exist_ok=True)
         # Sonsuz büyümeyi engelle: eşik aşılınca tek yedek dosyaya döndür.
@@ -107,14 +117,15 @@ def _append_webmail_alert(report: dict, alert_log: str = "") -> None:
         except OSError:
             pass
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        row = {**report, "alerted_at": now}
+        mask = bool(load_privacy_settings().get("kvkk_mask_logs", True))
+        row = sanitize_alert_for_storage({**report, "alerted_at": now}, mask=mask)
         with open(lp, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
 
 
-def handle_native_request(req: dict, alert_log: str = "") -> dict:
+def handle_native_request(req: dict, alert_log: str = "", log_alerts: bool = True) -> dict:
     """Tarayıcı eklentisinden gelen isteği yerel ElfSec motoruyla işler."""
     action = str((req or {}).get("action", "") or "").strip().lower()
 
@@ -171,7 +182,8 @@ def handle_native_request(req: dict, alert_log: str = "") -> dict:
         }
         if mapping:
             out["expanded_urls"] = mapping
-        _append_webmail_alert(out, alert_log=alert_log)
+        if log_alerts:
+            _append_webmail_alert(out, alert_log=alert_log)
         return out
 
     if action in ("analyze_url", "analyze_text"):
@@ -215,7 +227,8 @@ def handle_native_request(req: dict, alert_log: str = "") -> dict:
             "source": "browser_download",
             "version": __version__,
         }
-        _append_webmail_alert(out, alert_log=alert_log)
+        if log_alerts:
+            _append_webmail_alert(out, alert_log=alert_log)
         return out
 
     return {"ok": False, "error": f"Bilinmeyen istek: {action or '(boş)'}"}

@@ -232,3 +232,19 @@ elfsec.spec
 /elfsec-*.zip
 /elfsec-*.zip.sha256
 /extension.zip
+/extension*.zip
+
+# ElfSec yerel gizlilik, günlük ve derleme çıktıları (açık kaynakta repoya girmez)
+installer/Output/
+installer/build/
+*.exe
+*.quarantined
+guard_alerts.jsonl
+clipboard_alerts.jsonl
+privacy_settings.json
+game_mode.json
+game_mode_config.json
+.env
+backend/.env
+!.env.example
+!backend/.env.example

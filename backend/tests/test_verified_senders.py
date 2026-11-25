@@ -137,3 +137,36 @@ def test_kontrol_ver_checks_pass():
     by_id = {b["id"]: b for b in r["bulgular"]}
     for cid in ("VER-01", "VER-02", "VER-03"):
         assert by_id[cid]["durum"] == "PASS", by_id[cid]
+
+
+def test_official_gov_and_known_org_url_and_sender_verification():
+    from app.verified_senders import verify_url
+
+    assert verify_url("https://gib.gov.tr/giris")["verified"] is True
+    assert verify_url("https://www.usa.gov")["category"] == "OFFICIAL_GOV"
+    assert verify_url("https://github.com/byeco/ElfSec")["label"] == "GitHub"
+    assert verify_url("https://github.com/login")["verified"] is True
+
+    assert verify_url("https://attacker.github.io/login")["verified"] is False
+    assert verify_url("https://gov.tr.evil.com")["verified"] is False
+    assert verify_url("https://github.com@evil.com")["verified"] is False
+    assert verify_url("http://gib.gov.tr")["verified"] is False
+    assert verify_url("https://github.com/x/app.exe")["verified"] is False
+
+    # Resmi giriş adresi yanlış pozitif +8 anahtar kelime cezası almamalı
+    clean_rep = local_analyze(
+        subject="Bilgi",
+        plain_text="https://github.com/login",
+        urls=["https://github.com/login"],
+    )
+    assert clean_rep["risk_score"] == 0
+    assert clean_rep["suspicious_urls"] == []
+
+    # .gov.tr gönderici doğrulaması ve SPF fail durumunda SPOOFED yakalaması
+    sv_gov = verify_sender("MEB <duyuru@meb.gov.tr>")
+    assert sv_gov["status"] == "VERIFIED_DOMAIN"
+    sv_spoof = verify_sender(
+        "GİB <bilgi@gib.gov.tr>",
+        headers={"auth_results": "spf=fail dkim=fail"},
+    )
+    assert sv_spoof["status"] == "SPOOFED"

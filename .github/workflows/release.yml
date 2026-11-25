@@ -1,6 +1,6 @@
-# Kullanıcı indirmesi: `v*` tag'i pushlanınca Windows'ta TEK elfsec.exe derlenir
-# (CLI + guard + Windows eklentisi birleşik) ve GitHub Releases'e yüklenir.
-# Kullanım: git tag v1.4.1; git push origin v1.4.1
+# Kullanıcı indirmesi: `v*` tag'i pushlanınca Windows'ta ElfSecSetup.exe ve tek elfsec.exe derlenir
+# ve GitHub Releases'e yüklenir.
+# Kullanım: git tag v1.6.1; git push origin v1.6.1
 name: release-exe
 
 on:
@@ -23,11 +23,21 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pyinstaller==6.13.0
+      - run: python scripts/make_ico.py
       - run: >
           pyinstaller --noconfirm --clean --onefile --console --name elfsec
+          --icon ..\installer\elfsec.ico
+          --add-data "assets\elfsec.ico;assets"
+          --add-data "..\extension\icons\icon128.png;assets"
+          --collect-all webview
+          --collect-all clr_loader
+          --collect-all pythonnet
           --hidden-import imap_tools --hidden-import bleach --hidden-import lxml
           --hidden-import pydantic_settings --hidden-import app.win_service
           --hidden-import app.win_plugin --hidden-import app.native_host
+          --hidden-import app.game_mode --hidden-import app.desktop_ui
+          --hidden-import app.privacy --hidden-import app.window_host --hidden-import webview
+          --hidden-import webview.platforms.winforms --hidden-import webview.platforms.edgechromium
           --hidden-import app.verified_senders --hidden-import app.services.file_scanner
           --hidden-import app.watchers.file_watcher
           --hidden-import app.watchers.clipboard_guard
@@ -35,10 +45,23 @@ jobs:
       - run: .\dist\elfsec.exe health
       - run: .\dist\elfsec.exe kontrol --fail-only --fail-on HIGH
       - run: python scripts/pack_extensions.py --out ..
+      - run: >
+          pyinstaller --noconfirm --clean --onefile --windowed --uac-admin
+          --icon ..\installer\elfsec.ico
+          --name ElfSecSetup
+          --distpath ..\installer\Output
+          --workpath ..\installer\build
+          --specpath ..\installer\build
+          --add-data "dist\elfsec.exe;payload"
+          --add-data "..\installer\elfsec.ico;payload"
+          --add-data "..\extension\icons\icon128.png;payload"
+          --add-data "..\extension;payload\extension"
+          ..\installer\setup_wizard_gui.py
       - uses: actions/upload-artifact@v4
         with:
           name: elfsec-windows
           path: |
+            installer/Output/ElfSecSetup.exe
             backend/dist/elfsec.exe
             elfsec-browser-extension.zip
             elfsec-extension-chrome-edge-store.zip
@@ -46,6 +69,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
+            installer/Output/ElfSecSetup.exe
             backend/dist/elfsec.exe
             elfsec-browser-extension.zip
             elfsec-extension-chrome-edge-store.zip

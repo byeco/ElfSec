@@ -12,10 +12,59 @@ Kullanım (tek exe):
 from __future__ import annotations
 
 import os
+import sys
 import threading
+from pathlib import Path
 from typing import Callable
 
 _TRAY_REFS: list = []
+
+
+def _find_elfsec_ico() -> Path | None:
+    candidates: list[Path] = []
+    meipass = getattr(sys, "_MEIPASS", "")
+    if meipass:
+        candidates.append(Path(meipass) / "assets" / "elfsec.ico")
+    try:
+        candidates.append(Path(sys.executable).resolve().parent / "elfsec.ico")
+    except Exception:
+        pass
+    try:
+        candidates.append(Path(__file__).resolve().parents[1] / "assets" / "elfsec.ico")
+        candidates.append(Path(__file__).resolve().parents[2] / "installer" / "elfsec.ico")
+    except Exception:
+        pass
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return c
+    return None
+
+
+def _load_elfsec_tray_icon(user32, hinst, fallback_shield, fallback_app):
+    import ctypes
+    from ctypes import wintypes
+
+    ico = _find_elfsec_ico()
+    if ico is not None:
+        try:
+            user32.LoadImageW.argtypes = [
+                wintypes.HINSTANCE,
+                wintypes.LPCWSTR,
+                wintypes.UINT,
+                ctypes.c_int,
+                ctypes.c_int,
+                wintypes.UINT,
+            ]
+            user32.LoadImageW.restype = wintypes.HANDLE
+            h = user32.LoadImageW(None, str(ico), 1, 16, 16, 0x0010)
+            if h:
+                return h
+        except Exception:
+            pass
+    hicon = user32.LoadIconW(None, ctypes.cast(fallback_shield, wintypes.LPCWSTR))
+    if not hicon:
+        hicon = user32.LoadIconW(None, ctypes.cast(fallback_app, wintypes.LPCWSTR))
+    return hicon
 
 
 def hide_console() -> None:
@@ -86,6 +135,7 @@ def _run_win32_tray(
         ID_TOGGLE_CLIP = 1003
         ID_STATUS = 1004
         ID_DASHBOARD = 1005
+        ID_TOGGLE_GAMEMODE = 1006
         ID_EXIT = 1099
 
         LRESULT = ctypes.c_ssize_t
@@ -182,6 +232,7 @@ def _run_win32_tray(
                 user32.AppendMenuW(menu, MF_STRING, ID_SCAN_CLIP, "Panoyu Şimdi Tara")
                 user32.AppendMenuW(menu, MF_STRING, ID_SCAN_DL, "İndirilenleri Şimdi Tara")
                 user32.AppendMenuW(menu, MF_STRING, ID_TOGGLE_CLIP, "Pano Koruması (Aç/Kapat)")
+                user32.AppendMenuW(menu, MF_STRING, ID_TOGGLE_GAMEMODE, "Oyun Modu (Oto/Açık/Kapalı)")
                 user32.AppendMenuW(menu, MF_STRING, ID_STATUS, "Servis & Eklenti Durumu")
                 user32.AppendMenuW(menu, MF_STRING, ID_DASHBOARD, "Güvenlik Panelini Aç")
                 user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
@@ -211,6 +262,8 @@ def _run_win32_tray(
                     _invoke("scan_downloads")
                 elif cmd_id == ID_TOGGLE_CLIP:
                     _invoke("toggle_clipboard")
+                elif cmd_id == ID_TOGGLE_GAMEMODE:
+                    _invoke("toggle_game_mode")
                 elif cmd_id == ID_STATUS:
                     _invoke("status")
                 elif cmd_id == ID_DASHBOARD:
@@ -234,9 +287,7 @@ def _run_win32_tray(
         _TRAY_REFS.append(wnd_proc_cb)
 
         hinst = kernel32.GetModuleHandleW(None)
-        hicon = user32.LoadIconW(None, ctypes.cast(IDI_SHIELD, wintypes.LPCWSTR))
-        if not hicon:
-            hicon = user32.LoadIconW(None, ctypes.cast(IDI_APPLICATION, wintypes.LPCWSTR))
+        hicon = _load_elfsec_tray_icon(user32, hinst, IDI_SHIELD, IDI_APPLICATION)
 
         cls_name = f"ElfSecTrayWnd_{os.getpid()}"
         wc = WNDCLASSEXW(

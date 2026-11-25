@@ -11,7 +11,6 @@ import hashlib
 import os
 import re
 import threading
-import time
 from datetime import datetime, timezone
 
 from app.rules import load_rules
@@ -36,8 +35,18 @@ CLICKFIX_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 
 
-def analyze_clipboard_text(text: str, rules: dict | None = None) -> dict:
-    """Pano metnini ClickFix ve phishing URL açısından çevrimdışı analiz eder."""
+def analyze_clipboard_text(
+    text: str,
+    rules: dict | None = None,
+    strict_kvkk: bool = False,
+) -> dict:
+    """Pano metnini ClickFix ve phishing URL açısından çevrimdışı analiz eder.
+
+    `strict_kvkk=True` (arka plan izleme):
+    - Yalnızca ClickFix zararlı komutları ve açık http/https URL'leri denetlenir;
+      normal metinler, kişisel notlar, IBAN/TC/şifre gibi içerikler taranmaz.
+    - Ham pano metni `preview` alanında asla saklanmaz.
+    """
     raw = (text or "").strip()
     if not raw:
         return {
@@ -79,13 +88,15 @@ def analyze_clipboard_text(text: str, rules: dict | None = None) -> dict:
             if why:
                 reasons.append(why)
 
-    # Uzun metinde olta/prompt-injection kalıpları da varsa ekle (URL puanını çift sayma)
-    rep = local_analyze("", raw[:4000], [], "", None, None, R)
-    if rep["risk_score"] > 0:
-        score += rep["risk_score"]
-        for r in rep["reasons"]:
-            if r != "Bilinen oltalama / injection kalıbı eşleşmedi." and r not in reasons:
-                reasons.append(r)
+    rep: dict = {"risk_score": 0, "reasons": [], "phishing_detected": False, "prompt_injection_detected": False}
+    if not strict_kvkk:
+        # Uzun metinde olta/prompt-injection kalıpları da varsa ekle (URL puanını çift sayma)
+        rep = local_analyze("", raw[:4000], [], "", None, None, R)
+        if rep["risk_score"] > 0:
+            score += rep["risk_score"]
+            for r in rep["reasons"]:
+                if r != "Bilinen oltalama / injection kalıbı eşleşmedi." and r not in reasons:
+                    reasons.append(r)
 
     score = max(0, min(100, score))
     level = "LOW" if score < 25 else "MEDIUM" if score < 50 else "HIGH" if score < 75 else "CRITICAL"
@@ -104,7 +115,7 @@ def analyze_clipboard_text(text: str, rules: dict | None = None) -> dict:
         "clickfix_detected": clickfix,
         "phishing_detected": phishing,
         "prompt_injection_detected": bool(rep.get("prompt_injection_detected")),
-        "preview": raw[:120],
+        "preview": "[KVKK: Ham pano metni gizlendi]" if strict_kvkk else raw[:120],
         "recommended_action": (
             "Bu komutu Win+R/terminale YAPIŞTIRMAYIN ve şüpheli bağlantıyı açmayın!"
             if score >= 25 else "Güvenli görünüyor."
@@ -178,8 +189,9 @@ def read_windows_clipboard() -> str | None:
 class ClipboardGuard:
     """Pano değişikliklerini izleyen ve tekrarlayan içerikte tek sefer uyaran sınıf."""
 
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = False, strict_kvkk: bool = True):
         self.enabled = enabled
+        self.strict_kvkk = strict_kvkk
         self._last_seq: int = -1
         self._last_hash: str = ""
 
@@ -209,7 +221,7 @@ class ClipboardGuard:
         if not force and digest == self._last_hash:
             return None
         self._last_hash = digest
-        return analyze_clipboard_text(text)
+        return analyze_clipboard_text(text, strict_kvkk=self.strict_kvkk if not force else False)
 
     def run_loop(
         self,
@@ -217,6 +229,7 @@ class ClipboardGuard:
         interval_sec: float = 1.5,
         alert_on: str = "MEDIUM",
         on_alert=None,
+        interval_fn=None,
     ) -> None:
         """Pano korumasını arka planda çalıştır (asla çökmez)."""
         # Açılışta mevcut pano içeriğini referans alıp eski kopya için spam yapma
@@ -232,4 +245,5 @@ class ClipboardGuard:
                         on_alert(rep)
             except Exception:
                 pass
-            time.sleep(max(0.5, float(interval_sec)))
+            wait_sec = interval_fn() if callable(interval_fn) else interval_sec
+            stop_event.wait(max(0.5, float(wait_sec)))

@@ -1665,4 +1665,172 @@ body {
   .card {
     padding: 18px 16px;
   }
+
+  .page-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ==================== ALT BİLGİ / TELİF HAKKI ==================== */
+.page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.page-footer-copy strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.page-footer-copy small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.page-footer-badges {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.legal-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.legal-pill.is-accent {
+  background: var(--brand-soft);
+  border-color: rgba(16, 185, 129, 0.28);
+  color: var(--brand);
+}
+
+.side-seal-link {
+  text-decoration: none;
+  border-radius: 8px;
+  transition: color 0.14s ease;
+}
+
+.side-seal-link:hover {
+  color: var(--brand);
+}
+
+.side-seal-link:focus-visible,
+.footer-copy-link:focus-visible,
+.legal-pill-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.footer-copy-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: color 0.14s ease;
+}
+
+.footer-copy-link:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+.legal-pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+
+.legal-pill-link:hover {
+  border-color: rgba(16, 185, 129, 0.36);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.hero-chip-link {
+  text-decoration: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
+}
+
+.hero-chip-link:hover {
+  border-color: rgba(16, 185, 129, 0.48);
+  box-shadow: 0 2px 8px var(--brand-glow);
+}
+
+.hero-chip-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* ==================== PUANLAMA & DESTEK KARTI ==================== */
+.rate-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, var(--surface) 48%, var(--brand-soft) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  box-shadow: var(--shadow-sm);
+}
+
+.rate-copy {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.rate-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--warn-accent);
+  margin-bottom: 6px;
+}
+
+.rate-copy h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.rate-copy p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.rate-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .rate-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

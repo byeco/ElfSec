@@ -455,6 +455,16 @@
     const tip = ensureHoverTooltip();
     const highRiskUrls = new Set(Array.isArray(report.suspicious_urls) ? report.suspicious_urls : []);
     const reasons = Array.isArray(report.reasons) ? report.reasons : [];
+    const verifiedMap = {};
+    if (Array.isArray(report.verified_urls)) {
+      report.verified_urls.forEach((v) => {
+        if (v && v.url) verifiedMap[v.url] = v;
+      });
+    } else if (report.verified_urls && typeof report.verified_urls === "object") {
+      Object.keys(report.verified_urls).forEach((u) => {
+        verifiedMap[u] = report.verified_urls[u];
+      });
+    }
 
     bodyEl.querySelectorAll("a[href]").forEach((a) => {
       const href = a.getAttribute("href") || "";
@@ -466,11 +476,12 @@
       const mismatchHost = isHostMismatch(textHost, actualHost);
       const isSus = highRiskUrls.has(href) || mismatchHost;
       const urlReason = reasons.find((r) => String(r).includes(href)) || "";
+      const verifiedInfo = !isSus && !mismatchHost && verifiedMap[href] ? verifiedMap[href] : null;
 
       if (isSus) a.classList.add("elfsec-sus-link");
       else a.classList.remove("elfsec-sus-link");
 
-      linkMetaMap.set(a, { href, actualHost, proto, textHost, mismatchHost, isSus, urlReason, report, lvl });
+      linkMetaMap.set(a, { href, actualHost, proto, textHost, mismatchHost, isSus, urlReason, verifiedInfo, report, lvl });
 
       if (!a.dataset.elfsecWired) {
         a.dataset.elfsecWired = "1";
@@ -478,19 +489,37 @@
           const meta = linkMetaMap.get(a);
           if (!meta) return;
           applyThemeAttr(tip, currentTheme);
-          tip.className = meta.isSus ? "elfsec-tip-bad" : "elfsec-tip-ok";
+          tip.className = meta.isSus
+            ? "elfsec-tip-bad"
+            : meta.verifiedInfo ? "elfsec-tip-ok elfsec-tip-verified" : "elfsec-tip-ok";
           tip.replaceChildren();
 
           const tipHead = textEl("div", "elfsec-tip-head");
-          tipHead.appendChild(meta.isSus ? alertIcon() : shieldIcon());
-          tipHead.appendChild(textEl("span", "", meta.mismatchHost
+          tipHead.appendChild(meta.isSus ? alertIcon() : meta.verifiedInfo ? checkCircleIcon() : shieldIcon());
+          const headText = meta.mismatchHost
             ? "Hedef uyuşmazlığı"
-            : meta.isSus ? "Şüpheli bağlantı" : "Doğrulanabilir hedef"));
+            : meta.isSus
+              ? "Şüpheli bağlantı"
+              : meta.verifiedInfo
+                ? (meta.verifiedInfo.category === "OFFICIAL_GOV"
+                    ? "Doğrulanmış Resmi Kurum"
+                    : meta.verifiedInfo.category === "OFFICIAL_EDU"
+                      ? "Doğrulanmış Eğitim Kurumu"
+                      : "Doğrulanmış Resmi Kuruluş")
+                : "Hedef önizleme";
+          tipHead.appendChild(textEl("span", "", headText));
           if (meta.proto) {
             tipHead.appendChild(textEl("span", `elfsec-tip-proto ${meta.proto === "HTTP" ? "is-http" : ""}`, meta.proto));
           }
           tip.appendChild(tipHead);
           tip.appendChild(textEl("div", "elfsec-tip-host", meta.actualHost || "bilinmeyen alan adı"));
+
+          if (meta.verifiedInfo && meta.verifiedInfo.label) {
+            const vBadge = textEl("div", "elfsec-tip-verified-badge");
+            vBadge.appendChild(checkCircleIcon());
+            vBadge.appendChild(textEl("span", "", meta.verifiedInfo.label));
+            tip.appendChild(vBadge);
+          }
 
           if (meta.mismatchHost && meta.textHost) {
             tip.appendChild(textEl("div", "elfsec-tip-mismatch", `Görünen: ${meta.textHost} → Gerçek: ${meta.actualHost}`));

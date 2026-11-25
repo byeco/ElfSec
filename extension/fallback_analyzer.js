@@ -54,6 +54,87 @@
   var RISKY_EXT = EXEC_EXT.concat(SCRIPT_EXT).concat(ARCHIVE_EXT);
   var DOC_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".txt"];
 
+  /* Resmi devlet, belediye, eğitim uzantıları (en uzun son-ek önce) */
+  var OFFICIAL_TLD_RULES = [
+    { suffix: ".gov.tr", category: "OFFICIAL_GOV", label: "T.C. Resmi Devlet Kurumu (.gov.tr)" },
+    { suffix: ".bel.tr", category: "OFFICIAL_GOV", label: "T.C. Belediye Kurumu (.bel.tr)" },
+    { suffix: ".pol.tr", category: "OFFICIAL_GOV", label: "T.C. Emniyet Genel Müdürlüğü (.pol.tr)" },
+    { suffix: ".tsk.tr", category: "OFFICIAL_GOV", label: "Türk Silahlı Kuvvetleri (.tsk.tr)" },
+    { suffix: ".kep.tr", category: "OFFICIAL_GOV", label: "Kayıtlı Elektronik Posta (.kep.tr)" },
+    { suffix: ".edu.tr", category: "OFFICIAL_EDU", label: "T.C. Yükseköğretim Kurumu (.edu.tr)" },
+    { suffix: ".k12.tr", category: "OFFICIAL_EDU", label: "T.C. Millî Eğitim Kurumu (.k12.tr)" },
+    { suffix: ".gov.uk", category: "OFFICIAL_GOV", label: "Resmi Kamu Kurumu (.gov.uk)" },
+    { suffix: ".gov.au", category: "OFFICIAL_GOV", label: "Resmi Kamu Kurumu (.gov.au)" },
+    { suffix: ".gc.ca", category: "OFFICIAL_GOV", label: "Resmi Kamu Kurumu (.gc.ca)" },
+    { suffix: ".gouv.fr", category: "OFFICIAL_GOV", label: "Resmi Kamu Kurumu (.gouv.fr)" },
+    { suffix: ".europa.eu", category: "OFFICIAL_GOV", label: "Avrupa Birliği Kurumu (.europa.eu)" },
+    { suffix: ".gov", category: "OFFICIAL_GOV", label: "Resmi Devlet Kurumu (.gov)" }
+  ];
+
+  /* Herkesin bildiği resmi kuruluş ve teknoloji alan adları */
+  var KNOWN_OFFICIAL_DOMAINS = [
+    { domain: "github.com", label: "GitHub" },
+    { domain: "gitlab.com", label: "GitLab" },
+    { domain: "bitbucket.org", label: "Bitbucket" },
+    { domain: "stackoverflow.com", label: "Stack Overflow" },
+    { domain: "npmjs.com", label: "npm" },
+    { domain: "pypi.org", label: "PyPI" },
+    { domain: "mozilla.org", label: "Mozilla" },
+    { domain: "wikipedia.org", label: "Wikipedia" },
+    { domain: "wikimedia.org", label: "Wikimedia" },
+    { domain: "cloudflare.com", label: "Cloudflare" },
+    { domain: "openai.com", label: "OpenAI" },
+    { domain: "anthropic.com", label: "Anthropic" },
+    { domain: "linkedin.com", label: "LinkedIn" },
+    { domain: "x.com", label: "X" },
+    { domain: "twitter.com", label: "Twitter / X" },
+    { domain: "zoom.us", label: "Zoom" },
+    { domain: "slack.com", label: "Slack" },
+    { domain: "adobe.com", label: "Adobe" },
+    { domain: "nvidia.com", label: "NVIDIA" },
+    { domain: "spotify.com", label: "Spotify" },
+    { domain: "byeco.com.tr", label: "byeco" },
+    { domain: "turkishairlines.com", label: "Türk Hava Yolları" },
+    { domain: "thy.com", label: "Türk Hava Yolları" },
+    { domain: "flypgs.com", label: "Pegasus" },
+    { domain: "sahibinden.com", label: "sahibinden.com" },
+    { domain: "n11.com", label: "n11" },
+    { domain: "migros.com.tr", label: "Migros" },
+    { domain: "getir.com", label: "Getir" },
+    { domain: "yemeksepeti.com", label: "Yemeksepeti" },
+    { domain: "halkbank.com.tr", label: "Halkbank" },
+    { domain: "vakifbank.com.tr", label: "VakıfBank" },
+    { domain: "qnbfinansbank.com", label: "QNB" },
+    { domain: "qnb.com.tr", label: "QNB" },
+    { domain: "denizbank.com", label: "DenizBank" },
+    { domain: "enpara.com", label: "Enpara.com" },
+    { domain: "ing.com.tr", label: "ING Türkiye" },
+    { domain: "teb.com.tr", label: "TEB" }
+  ];
+
+  /* Kullanıcı içerikli / barındırma alt alan adları asla doğrulanmış resmi kurum sayılmaz */
+  var USER_CONTENT_HOSTS = [
+    "github.io",
+    "githubusercontent.com",
+    "sites.google.com",
+    "docs.google.com",
+    "drive.google.com",
+    "forms.gle",
+    "storage.googleapis.com",
+    "onedrive.live.com",
+    "sharepoint.com",
+    "web.app",
+    "firebaseapp.com",
+    "pages.dev",
+    "vercel.app",
+    "netlify.app",
+    "workers.dev",
+    "blogspot.com",
+    "wordpress.com",
+    "wixsite.com",
+    "weebly.com"
+  ];
+
   /* backend/app/verified_senders.py ile senkronize 22 resmi marka */
   var VERIFIED_BRANDS = [
     {
@@ -231,34 +312,159 @@
     return hasLatin && hasNonLatin;
   }
 
-  function checkUrl(url) {
+  function matchOfficialTld(dom) {
+    var d = String(dom || "").toLowerCase().replace(/\.$/, "");
+    if (!d) return null;
+    for (var i = 0; i < OFFICIAL_TLD_RULES.length; i++) {
+      var rule = OFFICIAL_TLD_RULES[i];
+      if (d.endsWith(rule.suffix) && d.length > rule.suffix.length) {
+        return rule;
+      }
+    }
+    return null;
+  }
+
+  function verifyDomain(host, options) {
+    var opts = options || {};
+    var d = String(host || "").toLowerCase().trim().replace(/\.$/, "");
+    var empty = { verified: false, category: "", label: "", detail: "" };
+    if (!d || d.indexOf(".") === -1) return empty;
+    if (d.indexOf("xn--") === 0 || d.indexOf(".xn--") !== -1) return empty;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(d) || hasMixedScript(d)) return empty;
+    if (domainMatches(d, USER_CONTENT_HOSTS)) return empty;
+
+    if (Array.isArray(opts.trustedDomains) && domainMatches(d, opts.trustedDomains)) {
+      return {
+        verified: true,
+        category: "TRUSTED_USER",
+        label: d,
+        detail: "Kullanıcı güvenilen alan adı: " + d
+      };
+    }
+
+    var customList = Array.isArray(opts.customBrands) ? opts.customBrands : [];
+    for (var i = 0; i < customList.length; i++) {
+      var cb = customList[i];
+      if (cb && cb.label && Array.isArray(cb.domains) && domainMatches(d, cb.domains)) {
+        return {
+          verified: true,
+          category: "VERIFIED_ORG",
+          label: String(cb.label),
+          detail: "Özel doğrulanmış kurum: " + cb.label + " (" + d + ")"
+        };
+      }
+    }
+
+    for (var j = 0; j < VERIFIED_BRANDS.length; j++) {
+      var b = VERIFIED_BRANDS[j];
+      if (domainMatches(d, b.domains)) {
+        return {
+          verified: true,
+          category: "VERIFIED_ORG",
+          label: b.label,
+          detail: "Doğrulanmış resmi kuruluş: " + b.label + " (" + d + ")"
+        };
+      }
+    }
+
+    for (var k = 0; k < KNOWN_OFFICIAL_DOMAINS.length; k++) {
+      var kd = KNOWN_OFFICIAL_DOMAINS[k];
+      if (d === kd.domain || d.endsWith("." + kd.domain)) {
+        return {
+          verified: true,
+          category: "VERIFIED_ORG",
+          label: kd.label,
+          detail: "Doğrulanmış resmi kuruluş: " + kd.label + " (" + d + ")"
+        };
+      }
+    }
+
+    var tldRule = matchOfficialTld(d);
+    if (tldRule) {
+      return {
+        verified: true,
+        category: tldRule.category,
+        label: tldRule.label,
+        detail: tldRule.label + " (" + d + ")"
+      };
+    }
+
+    return empty;
+  }
+
+  function verifyUrl(url, options) {
+    var raw = String(url || "").trim();
+    var empty = { verified: false, category: "", label: "", detail: "", url: raw, host: "" };
+    if (!raw) return empty;
+    var parsed;
+    try {
+      parsed = new URL(raw);
+    } catch (_e) {
+      return empty;
+    }
+    if (parsed.protocol !== "https:") return empty;
+    if (parsed.username || parsed.password || raw.indexOf("@") !== -1) return empty;
+    var host = (parsed.hostname || "").toLowerCase().replace(/\.$/, "");
+    if (!host) return empty;
+    var ul = raw.toLowerCase();
+    if (SHORTENERS.some(function (s) { return ul.indexOf(s) !== -1; })) return empty;
+    var pathLow = (parsed.pathname || "").toLowerCase().replace(/\/+$/, "");
+    if (RISKY_EXT.some(function (ext) { return pathLow.endsWith(ext) || ul.replace(/\/+$/, "").endsWith(ext); })) {
+      return empty;
+    }
+    var res = verifyDomain(host, options);
+    if (!res.verified) {
+      return { verified: false, category: "", label: "", detail: "", url: raw, host: host };
+    }
+    return {
+      verified: true,
+      category: res.category,
+      label: res.label,
+      detail: res.detail,
+      url: raw,
+      host: host
+    };
+  }
+
+  function checkUrl(url, options) {
     var ul = String(url || "").toLowerCase();
     var host = getHost(url);
     if (SHORTENERS.some(function (s) { return ul.indexOf(s) !== -1; })) {
-      return { pts: 15, reason: "Kısaltılmış URL (gerçek adres gizli): " + url };
+      return { pts: 15, reason: "Kısaltılmış URL (gerçek adres gizli): " + url, verified: false };
     }
     if (host.indexOf("xn--") === 0 || host.indexOf(".xn--") !== -1) {
-      return { pts: 25, reason: "Homoglif/IDN sahteciliği (punycode): " + url };
+      return { pts: 25, reason: "Homoglif/IDN sahteciliği (punycode): " + url, verified: false };
     }
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
-      return { pts: 25, reason: "IP adresine giden link: " + url };
+      return { pts: 25, reason: "IP adresine giden link: " + url, verified: false };
     }
     if (SUSPICIOUS_TLDS.some(function (t) { return host.endsWith(t); })) {
-      return { pts: 20, reason: "Şüpheli TLD içeren URL: " + url };
+      return { pts: 20, reason: "Şüpheli TLD içeren URL: " + url, verified: false };
     }
     if (ul.indexOf("@") !== -1) {
-      return { pts: 15, reason: "Aldatıcı yapıda URL (@ işareti): " + url };
+      return { pts: 15, reason: "Aldatıcı yapıda URL (@ işareti): " + url, verified: false };
     }
     if (RISKY_EXT.some(function (ext) { return ul.replace(/\/+$/, "").endsWith(ext); })) {
-      return { pts: 20, reason: "Çalıştırılabilir/arşiv dosyasına link: " + url };
+      return { pts: 20, reason: "Çalıştırılabilir/arşiv dosyasına link: " + url, verified: false };
     }
     if (hasMixedScript(host)) {
-      return { pts: 25, reason: "Karışık alfabe sahteciliği (homoglif): " + url };
+      return { pts: 25, reason: "Karışık alfabe sahteciliği (homoglif): " + url, verified: false };
+    }
+    var v = verifyUrl(url, options);
+    if (v.verified) {
+      return {
+        pts: 0,
+        reason: "",
+        verified: true,
+        verifiedLabel: v.label,
+        verifiedCategory: v.category,
+        verifiedDetail: v.detail
+      };
     }
     if (/(login|signin|verify|account|update|secure|banking)/i.test(ul)) {
-      return { pts: 8, reason: "Kimlik-avı anahtar kelimeli URL: " + url };
+      return { pts: 8, reason: "Kimlik-avı anahtar kelimeli URL: " + url, verified: false };
     }
-    return { pts: 0, reason: "" };
+    return { pts: 0, reason: "", verified: false };
   }
 
   function domainMatches(dom, officialList) {
@@ -323,6 +529,16 @@
           };
         }
       }
+      var tldRule = matchOfficialTld(dom);
+      if (tldRule) {
+        return {
+          status: "VERIFIED_DOMAIN",
+          brand: tldRule.label,
+          matched_address: addr,
+          exact_official_address: false,
+          detail: "Resmi kurum alan adı eşleşti (" + dom + ")."
+        };
+      }
     }
     return { status: "UNKNOWN", brand: "", matched_address: addr, exact_official_address: false, detail: "" };
   }
@@ -371,6 +587,7 @@
     var score = 0;
     var reasons = [];
     var susUrls = [];
+    var verifiedUrls = [];
     var phishing = false;
     var promptInj = false;
 
@@ -408,11 +625,19 @@
       if (urls.indexOf(u) === -1) urls.push(u);
     });
     urls.slice(0, 100).forEach(function (u) {
-      var res = checkUrl(u);
+      var res = checkUrl(u, opts);
       if (res.pts > 0 && susUrls.indexOf(u) === -1) {
         score += res.pts;
         susUrls.push(u);
         reasons.push(res.reason);
+      } else if (res.verified && !verifiedUrls.some(function (x) { return x.url === u; })) {
+        verifiedUrls.push({
+          url: u,
+          host: getHost(u),
+          label: res.verifiedLabel,
+          category: res.verifiedCategory,
+          detail: res.verifiedDetail
+        });
       }
     });
 
@@ -466,6 +691,7 @@
         : "Belirgin tehdit kalıbı bulunamadı.",
       reasons: reasons.length ? reasons : ["Bilinen oltalama / injection kalıbı eşleşmedi."],
       suspicious_urls: susUrls,
+      verified_urls: verifiedUrls,
       phishing_detected: phishing,
       prompt_injection_detected: promptInj,
       sender_verification: sv,
@@ -497,6 +723,10 @@
     if (clickfix) {
       reasons.unshift("ClickFix / zararlı komut kopyalama tuzağı tespit edildi.");
     }
+    var verifiedUrls = Array.isArray(rep.verified_urls) ? rep.verified_urls : [];
+    if (score === 0 && verifiedUrls.length > 0) {
+      reasons.unshift("Doğrulanmış resmi bağlantı: " + verifiedUrls[0].label + " (" + verifiedUrls[0].host + ")");
+    }
     score = Math.max(0, Math.min(100, score));
     return {
       ok: true,
@@ -508,6 +738,7 @@
       phishing_detected: rep.phishing_detected || rep.suspicious_urls.length > 0,
       reasons: reasons.length ? reasons : ["Bilinen ClickFix veya phishing kalıbı eşleşmedi."],
       suspicious_urls: rep.suspicious_urls,
+      verified_urls: verifiedUrls,
       summary: "Tarayıcı analizi: skor " + score + "/100."
     };
   }
@@ -576,6 +807,8 @@
     analyzeText: analyzeText,
     analyzeDownload: analyzeDownload,
     verifySender: verifySender,
+    verifyDomain: verifyDomain,
+    verifyUrl: verifyUrl,
     getVerifiedBrands: getVerifiedBrands,
     extractUrls: extractUrls,
     checkUrl: checkUrl

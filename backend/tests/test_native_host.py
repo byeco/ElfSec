@@ -10,6 +10,7 @@ from app.cli import main as cli_main
 from app.kontrol import run_kontrol
 from app.native_host import (
     DEFAULT_EXTENSION_ID,
+    DEV_UNPACKED_PUBLIC_KEY,
     NATIVE_HOST_NAME,
     build_chromium_manifest,
     build_firefox_manifest,
@@ -97,7 +98,9 @@ def test_run_native_host_stdio_loop():
 def test_extension_manifest_key_matches_default_id():
     repo_root = Path(__file__).resolve().parents[2]
     mf = json.loads((repo_root / "extension" / "manifest.json").read_text(encoding="utf-8"))
-    assert derive_chrome_extension_id(mf["key"]) == DEFAULT_EXTENSION_ID
+    assert "key" not in mf
+    assert mf["default_locale"] == "en"
+    assert derive_chrome_extension_id(DEV_UNPACKED_PUBLIC_KEY) == DEFAULT_EXTENSION_ID
     matches = [m for cs in mf["content_scripts"] for m in cs["matches"]]
     assert "https://mail.google.com/*" in matches
     assert "https://outlook.live.com/*" in matches

@@ -315,6 +315,14 @@ async function scanEmail(payload, tabId) {
   report.trackerCounter = Boolean(st.settings.trackerCounter);
   report.theme = st.settings.theme || "auto";
   report.trustedDomain = "";
+  const verifiedMap = {};
+  (Array.isArray(payload.urls) ? payload.urls : []).forEach((u) => {
+    const v = ElfSecFallback.verifyUrl(u, st.settings);
+    if (v && v.verified) {
+      verifiedMap[u] = { label: v.label, category: v.category, detail: v.detail, host: v.host };
+    }
+  });
+  report.verified_urls = verifiedMap;
   await updateBadge(tabId, report);
   await recordScan(report, nativeConnected, nativeVersion);
   return report;
@@ -328,6 +336,23 @@ async function scanTextOrUrl(text, source) {
   const nativeVersion = nativeConnected ? (report.version || "") : st.nativeVersion;
   if (!nativeConnected) {
     report = ElfSecFallback.analyzeText(cleanText, st.settings);
+  }
+  const verifiedList = [];
+  ElfSecFallback.extractUrls(cleanText).forEach((u) => {
+    const v = ElfSecFallback.verifyUrl(u, st.settings);
+    if (v && v.verified && !verifiedList.some((x) => x.url === u)) {
+      verifiedList.push({ url: u, host: v.host, label: v.label, category: v.category, detail: v.detail });
+    }
+  });
+  report.verified_urls = verifiedList;
+  if ((Number(report.risk_score) || 0) === 0 && verifiedList.length > 0) {
+    const line = `Doğrulanmış resmi bağlantı: ${verifiedList[0].label} (${verifiedList[0].host})`;
+    const rs = Array.isArray(report.reasons) ? report.reasons.slice() : [];
+    if (!rs.length || rs[0].indexOf("eşleşmedi") !== -1 || rs[0].indexOf("Bilinen") !== -1) {
+      report.reasons = [line];
+    } else if (!rs.some((r) => String(r).indexOf("Doğrulanmış resmi bağlantı") !== -1)) {
+      report.reasons = [line].concat(rs);
+    }
   }
   report.via = nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek Motoru";
   report.source = source || "quick_scan";
@@ -509,9 +534,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === "SCAN_LINK_PREVIEW") {
-    const res = ElfSecFallback.checkUrl(msg.url || "");
-    sendResponse({ ok: true, pts: res.pts, reason: res.reason });
-    return false;
+    getState().then((st) => {
+      const res = ElfSecFallback.checkUrl(msg.url || "", st.settings);
+      sendResponse({
+        ok: true,
+        pts: res.pts,
+        reason: res.reason,
+        verified: Boolean(res.verified),
+        verifiedLabel: res.verifiedLabel || "",
+        verifiedCategory: res.verifiedCategory || "",
+        verifiedDetail: res.verifiedDetail || ""
+      });
+    });
+    return true;
   }
   if (msg.type === "GET_STATE" || msg.type === "GET_FULL_STATE") {
     getState().then(sendResponse);

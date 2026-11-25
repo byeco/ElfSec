@@ -1,9 +1,9 @@
 {
   "appName": {
-    "message": "ElfSec Güvenlik Eklentisi"
+    "message": "ElfSec"
   },
   "appDesc": {
-    "message": "Gmail, Outlook Web, Yahoo, Yandex, iCloud ve Proton Mail için %100 yerel phishing, marka taklidi, link ve indirme koruması."
+    "message": "Web e-posta için açık kaynaklı, yerel oltalama, marka taklidi, bağlantı ve indirme güvenlik kalkanı."
   },
   "ctxScanSelection": {
     "message": "ElfSec ile Seçili Metni Tara"
@@ -119,8 +119,17 @@
   "openSettings": {
     "message": "Ayarlar ve Mağaza Bağlantısı"
   },
-  "footerLocal": {
-    "message": "%100 Yerel"
+  "openSourceBadge": {
+    "message": "Açık Kaynak"
+  },
+  "openSourceChip": {
+    "message": "Açık Kaynak · GPL-3.0"
+  },
+  "footerCopyright": {
+    "message": "© 2026 byeco · Açık Kaynak"
+  },
+  "footerCopyrightTitle": {
+    "message": "© 2026 byeco. Tüm hakları saklıdır. Açık kaynaklı güvenlik sistemi (GNU GPL-3.0)."
   },
   "riskLow": {
     "message": "Düşük"
@@ -159,7 +168,7 @@
     "message": "Gizlilik & Hakkında"
   },
   "privacyNote": {
-    "message": "Tüm analiz %100 cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez."
+    "message": "Tüm analiz doğrudan cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez."
   },
   "modWebmailTitle": {
     "message": "Webmail otomatik kalkanı"
@@ -205,6 +214,9 @@
   },
   "nativeTestBtn": {
     "message": "Bağlantıyı Test Et"
+  },
+  "nativeDownloadBtn": {
+    "message": "ElfSecSetup.exe İndir"
   },
   "copyCmdBtn": {
     "message": "Komutu Kopyala"
@@ -260,8 +272,14 @@
   "navAria": {
     "message": "Ayar kategorileri"
   },
-  "sideOfflineBadge": {
-    "message": "%100 Çevrimdışı Analiz"
+  "sideCopyright": {
+    "message": "© 2026 byeco · Tüm hakları saklıdır"
+  },
+  "copyrightHeading": {
+    "message": "© 2026 byeco · Tüm hakları saklıdır."
+  },
+  "copyrightDesc": {
+    "message": "ElfSec, GNU GPL-3.0 lisansı altında geliştirilen açık kaynaklı bir güvenlik sistemidir."
   },
   "masterToggleAria": {
     "message": "Genel korumayı aç veya kapat"
@@ -408,7 +426,7 @@
     "message": "(konu yok)"
   },
   "pillarLocalTitle": {
-    "message": "%100 Yerel Analiz"
+    "message": "Cihaz İçi Analiz"
   },
   "pillarLocalDesc": {
     "message": "E-posta, bağlantı ve indirme denetimleri doğrudan cihazınızda çalışır."
@@ -469,5 +487,17 @@
   },
   "toastNativeFallback": {
     "message": "Masaüstü host bulunamadı — yedek motor aktif"
+  },
+  "rateTitle": {
+    "message": "ElfSec'i beğendiniz mi?"
+  },
+  "rateDesc": {
+    "message": "Açık kaynaklı ve ücretsiz geliştirmeye devam edebilmemiz için mağazada 5 yıldız vererek veya GitHub'da yıldızlayarak destek olabilirsiniz."
+  },
+  "rateStoreBtn": {
+    "message": "Mağazada Puanla"
+  },
+  "rateGithubBtn": {
+    "message": "GitHub'da Yıldızla"
   }
 }

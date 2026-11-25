@@ -20,6 +20,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.game_mode import apply_process_priority, read_shared_game_mode
 from app.settings_store import machine_data_dir
 from app.watchers.file_watcher import FileWatchState, default_watch_dirs, scan_watch_dirs_once
 
@@ -279,6 +280,16 @@ class ServiceRunner:
         self._last_mail_ts: float = 0.0
         self._alerts_total: int = 0
         self._imap_status: str = "disabled" if not enable_mail else "pending"
+        self._game_mode_active: bool = False
+        self._game_mode_process: str = ""
+        self.game_mode_watch_interval_sec: int = 120
+
+    def _refresh_game_mode(self) -> dict:
+        gm = read_shared_game_mode(extra_paths=[self.data_dir / "game_mode.json"])
+        self._game_mode_active = bool(gm.get("active", False))
+        self._game_mode_process = str(gm.get("process", ""))
+        apply_process_priority(self._game_mode_active)
+        return gm
 
     def _run_mail_cycle(self) -> int:
         from app.cli import _guard_cycle, _imap_auth, _load_seen
@@ -331,6 +342,8 @@ class ServiceRunner:
             "alerts_total": self._alerts_total,
             "action": self.action,
             "alert_on": self.alert_on,
+            "game_mode_active": self._game_mode_active,
+            "game_mode_process": self._game_mode_process,
         }
         try:
             self.status_file.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -340,6 +353,7 @@ class ServiceRunner:
 
     def run_once(self) -> dict:
         """Tek tur: İndirilenler klasörü taraması + zamanı geldiyse IMAP turu."""
+        self._refresh_game_mode()
         scanned, file_alerts = scan_watch_dirs_once(
             self.watch_dirs,
             self.file_state,
@@ -347,13 +361,15 @@ class ServiceRunner:
             action=self.action,
             quarantine_dir=self.quarantine_dir,
             alert_log=str(self.alert_log),
-            notify=self.notify,
+            notify=self.notify and not self._game_mode_active,
         )
         self._alerts_total += len(file_alerts)
 
         now_mono = time.monotonic()
         mail_alarms = 0
-        if self.enable_mail and (self._last_mail_ts == 0.0 or (now_mono - self._last_mail_ts) >= self.mail_interval_sec):
+        if self.enable_mail and self._game_mode_active:
+            self._imap_status = "deferred-game-mode"
+        elif self.enable_mail and (self._last_mail_ts == 0.0 or (now_mono - self._last_mail_ts) >= self.mail_interval_sec):
             self._last_mail_ts = now_mono
             try:
                 mail_alarms = self._run_mail_cycle()
@@ -369,15 +385,26 @@ class ServiceRunner:
 
     def run_forever(self, stop_event: threading.Event | None = None) -> None:
         ev = stop_event or threading.Event()
-        while not ev.is_set():
-            try:
-                self.run_once()
-            except Exception:
-                pass
-            for _ in range(self.watch_interval_sec):
-                if ev.is_set():
-                    break
-                time.sleep(1)
+        try:
+            while not ev.is_set():
+                try:
+                    self.run_once()
+                except Exception:
+                    pass
+                wait_total = self.game_mode_watch_interval_sec if self._game_mode_active else self.watch_interval_sec
+                elapsed = 0
+                while elapsed < wait_total and not ev.is_set():
+                    step = min(2, wait_total - elapsed)
+                    if ev.wait(step):
+                        break
+                    elapsed += step
+                    if elapsed % 6 == 0:
+                        prev = self._game_mode_active
+                        self._refresh_game_mode()
+                        if prev and not self._game_mode_active:
+                            break
+        finally:
+            apply_process_priority(False)
 
 
 # --- Native Win32 SCM Dispatcher (ctypes) ---
