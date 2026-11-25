@@ -1,20 +1,26 @@
 """v1.6.0: Mağaza hazır tarayıcı uzantısı paketleyici ve native_host scan_file testleri."""
 
 import json
+import shutil
+import struct
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
 
 from app.kontrol import run_kontrol
-from app.native_host import DEFAULT_EXTENSION_ID, derive_chrome_extension_id, handle_native_request
+from app.native_host import (
+    DEFAULT_EXTENSION_ID,
+    derive_chrome_extension_id,
+    handle_native_request,
+)
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-import pytest  # noqa: E402
-
-from pack_extensions import pack_all  # noqa: E402
+import pytest
+from pack_extensions import pack_all
 
 
 def test_native_host_scan_file_malicious_clean_and_missing(tmp_path):
@@ -132,3 +138,56 @@ def test_kontrol_win11_passes():
     assert r["fail"] == 0, r
     by_id = {b["id"]: b for b in r["bulgular"]}
     assert by_id["WIN-11"]["durum"] == "PASS"
+
+
+def test_extension_icons_and_locales_complete():
+    repo_root = Path(__file__).resolve().parents[2]
+    ext_dir = repo_root / "extension"
+
+    for size in (16, 32, 48, 128):
+        icon_path = ext_dir / "icons" / f"icon{size}.png"
+        assert icon_path.exists(), f"Eksik ikon: {icon_path}"
+        raw = icon_path.read_bytes()
+        assert raw[:8] == b"\x89PNG\r\n\x1a\n"
+        w, h = struct.unpack(">II", raw[16:24])
+        assert (w, h) == (size, size)
+
+    tr_msg = json.loads((ext_dir / "_locales" / "tr" / "messages.json").read_text(encoding="utf-8"))
+    en_msg = json.loads((ext_dir / "_locales" / "en" / "messages.json").read_text(encoding="utf-8"))
+    assert set(tr_msg) == set(en_msg)
+    assert len(tr_msg) >= 40
+    for key in tr_msg:
+        assert str(tr_msg[key].get("message", "")).strip()
+        assert str(en_msg[key].get("message", "")).strip()
+
+
+def test_extension_js_syntax_and_fallback_behavior():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node kurulu değil")
+
+    repo_root = Path(__file__).resolve().parents[2]
+    ext_dir = repo_root / "extension"
+    for js_file in sorted(ext_dir.glob("*.js")):
+        res = subprocess.run([node, "--check", str(js_file)], capture_output=True, text=True, check=False)
+        assert res.returncode == 0, f"{js_file.name}: {res.stderr}"
+
+    fb_path = (ext_dir / "fallback_analyzer.js").as_posix()
+    script = (
+        f"const fb = require({json.dumps(fb_path)});"
+        "const brands = fb.getVerifiedBrands();"
+        "const turkcellOk = fb.verifySender('bilgilendirme@turkcell.com.tr', 'Faturanız');"
+        "const vodafoneFake = fb.verifySender('Vodafone Destek <vodafone-destek@gmail.com>', 'Vodafone borç');"
+        "const macro = fb.analyzeEmail({subject:'Ek', sender:'a@b.com', body:'test', attachments:[{filename:'teklif.docm'}]});"
+        "const cf = fb.analyzeText('powershell -w hidden -enc JAB4');"
+        "const dl = fb.analyzeDownload({filename:'fatura.pdf.exe', url:'https://evil.tk/fatura.pdf.exe'});"
+        "console.log(JSON.stringify({brandCount: brands.length, turkcellOk, vodafoneFake, macro, cf, dl}));"
+    )
+    out = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True)
+    data = json.loads(out.stdout)
+    assert data["brandCount"] == 22
+    assert data["turkcellOk"]["status"] == "VERIFIED_DOMAIN"
+    assert data["vodafoneFake"]["status"] == "IMPERSONATION"
+    assert any("Makrolu Office" in r for r in data["macro"]["reasons"])
+    assert data["cf"]["clickfix_detected"] is True
+    assert data["dl"]["risk_level"] in ("HIGH", "CRITICAL")

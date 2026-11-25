@@ -16,5 +16,245 @@
   },
   "bannerRescan": {
     "message": "Rescan"
+  },
+  "tagline": {
+    "message": "Local email & download protection"
+  },
+  "tabOverview": {
+    "message": "Overview"
+  },
+  "tabScan": {
+    "message": "Quick Scan"
+  },
+  "tabAlerts": {
+    "message": "Alerts"
+  },
+  "statusChecking": {
+    "message": "Checking"
+  },
+  "statusFallback": {
+    "message": "Fallback Mode"
+  },
+  "statusOffline": {
+    "message": "Disconnected"
+  },
+  "protectionActive": {
+    "message": "Protection Active"
+  },
+  "protectionPaused": {
+    "message": "Protection Paused"
+  },
+  "protectionSubActive": {
+    "message": "Webmail, link, and download shields active"
+  },
+  "protectionSubPaused": {
+    "message": "Shields are temporarily disabled"
+  },
+  "statEmails": {
+    "message": "Emails"
+  },
+  "statDownloads": {
+    "message": "Downloads"
+  },
+  "statThreats": {
+    "message": "Threats"
+  },
+  "statVerified": {
+    "message": "Verified"
+  },
+  "quickToggles": {
+    "message": "Quick Shields"
+  },
+  "modWebmailShort": {
+    "message": "Webmail"
+  },
+  "modModalShort": {
+    "message": "Link Modal"
+  },
+  "modDownloadsShort": {
+    "message": "Downloads"
+  },
+  "modTrackerShort": {
+    "message": "Trackers"
+  },
+  "lastScanTitle": {
+    "message": "Latest Scan"
+  },
+  "lastScanEmpty": {
+    "message": "No scan recorded yet. Open a webmail message or download a file to inspect it locally."
+  },
+  "quickScanTitle": {
+    "message": "URL / Text / ClickFix Scan"
+  },
+  "quickScanHint": {
+    "message": "Ctrl + Enter"
+  },
+  "quickScanPlaceholder": {
+    "message": "Paste a suspicious link, email snippet, or PowerShell/CMD command…"
+  },
+  "scanBtn": {
+    "message": "Scan"
+  },
+  "scanBtnBusy": {
+    "message": "Scanning…"
+  },
+  "clearInputBtn": {
+    "message": "Clear"
+  },
+  "alertsTitle": {
+    "message": "Recent Alerts"
+  },
+  "alertsEmpty": {
+    "message": "No alerts yet. Suspicious emails, links, or downloads will appear here."
+  },
+  "filterAll": {
+    "message": "All"
+  },
+  "filterHigh": {
+    "message": "High+"
+  },
+  "filterMedium": {
+    "message": "Medium"
+  },
+  "openSettings": {
+    "message": "Settings & Store Link"
+  },
+  "footerLocal": {
+    "message": "100% Local"
+  },
+  "riskLow": {
+    "message": "Low"
+  },
+  "riskMedium": {
+    "message": "Medium"
+  },
+  "riskHigh": {
+    "message": "High"
+  },
+  "riskCritical": {
+    "message": "Critical"
+  },
+  "optTitle": {
+    "message": "ElfSec Settings"
+  },
+  "optSubtitle": {
+    "message": "Local email, link, and download security center"
+  },
+  "navShields": {
+    "message": "Shields & Theme"
+  },
+  "navNative": {
+    "message": "Desktop Bridge"
+  },
+  "navTrusted": {
+    "message": "Trusted Domains"
+  },
+  "navBrands": {
+    "message": "Brand Protection"
+  },
+  "navHistory": {
+    "message": "Stats & History"
+  },
+  "navAbout": {
+    "message": "Privacy & About"
+  },
+  "privacyNote": {
+    "message": "All analysis runs 100% locally on your device. No data is ever sent to external servers or clouds."
+  },
+  "modWebmailTitle": {
+    "message": "Webmail automatic shield"
+  },
+  "modWebmailDesc": {
+    "message": "Analyzes opened emails locally inside Gmail, Outlook Web, Yahoo, Yandex, iCloud, and Proton Mail."
+  },
+  "modModalTitle": {
+    "message": "Suspicious link blocker modal"
+  },
+  "modModalDesc": {
+    "message": "Displays a safe confirmation dialog before opening risky or mismatched destinations."
+  },
+  "modDownloadsTitle": {
+    "message": "Browser download shield"
+  },
+  "modDownloadsDesc": {
+    "message": "Inspects double extensions (.pdf.exe), RLO spoofing, scripts, and risky download sources."
+  },
+  "modTrackerTitle": {
+    "message": "1x1 tracking pixel counter"
+  },
+  "modTrackerDesc": {
+    "message": "Counts hidden open-tracking pixels inside emails and reports them in the banner."
+  },
+  "themeTitle": {
+    "message": "Appearance Theme"
+  },
+  "themeAuto": {
+    "message": "System"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "nativeTitle": {
+    "message": "Desktop Native Host Connection"
+  },
+  "nativeDesc": {
+    "message": "Pair this extension with your local elfsec.exe engine for deep offline file (PE/MotW/LOLBin) scanning and shared alert logging."
+  },
+  "nativeTestBtn": {
+    "message": "Test Connection"
+  },
+  "copyCmdBtn": {
+    "message": "Copy Command"
+  },
+  "copiedMsg": {
+    "message": "Command copied to clipboard."
+  },
+  "copyFailMsg": {
+    "message": "Copy failed — select the command manually."
+  },
+  "trustedTitle": {
+    "message": "Trusted Domains"
+  },
+  "trustedDesc": {
+    "message": "Emails arriving from these domains are placed on your local allowlist."
+  },
+  "addBtn": {
+    "message": "Add"
+  },
+  "brandsTitle": {
+    "message": "Custom Verified Brands"
+  },
+  "brandsDesc": {
+    "message": "Add your organization's official domain and sender address to detect brand impersonation."
+  },
+  "addBrandBtn": {
+    "message": "Add Brand"
+  },
+  "builtinBrandsTitle": {
+    "message": "Built-in Verified Brands"
+  },
+  "historyTitle": {
+    "message": "Statistics and History"
+  },
+  "exportJsonBtn": {
+    "message": "Export History JSON"
+  },
+  "clearHistoryBtn": {
+    "message": "Clear History"
+  },
+  "confirmClearPrompt": {
+    "message": "Delete all counters and alert history?"
+  },
+  "confirmYesBtn": {
+    "message": "Yes, Clear"
+  },
+  "confirmCancelBtn": {
+    "message": "Cancel"
+  },
+  "aboutTitle": {
+    "message": "Privacy Guarantee and Supported Providers"
   }
 }

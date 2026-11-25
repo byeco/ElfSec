@@ -16,5 +16,245 @@
   },
   "bannerRescan": {
     "message": "Tekrar Tara"
+  },
+  "tagline": {
+    "message": "Yerel e-posta ve indirme koruması"
+  },
+  "tabOverview": {
+    "message": "Genel"
+  },
+  "tabScan": {
+    "message": "Hızlı Tarama"
+  },
+  "tabAlerts": {
+    "message": "Alarmlar"
+  },
+  "statusChecking": {
+    "message": "Kontrol ediliyor"
+  },
+  "statusFallback": {
+    "message": "Yedek Mod"
+  },
+  "statusOffline": {
+    "message": "Bağlantı yok"
+  },
+  "protectionActive": {
+    "message": "Koruma Aktif"
+  },
+  "protectionPaused": {
+    "message": "Koruma Duraklatıldı"
+  },
+  "protectionSubActive": {
+    "message": "Webmail, link ve indirme kalkanı devrede"
+  },
+  "protectionSubPaused": {
+    "message": "Kalkanlar geçici olarak devre dışı"
+  },
+  "statEmails": {
+    "message": "E-posta"
+  },
+  "statDownloads": {
+    "message": "İndirme"
+  },
+  "statThreats": {
+    "message": "Tehdit"
+  },
+  "statVerified": {
+    "message": "Doğrulanan"
+  },
+  "quickToggles": {
+    "message": "Hızlı Kalkanlar"
+  },
+  "modWebmailShort": {
+    "message": "Webmail"
+  },
+  "modModalShort": {
+    "message": "Link Modalı"
+  },
+  "modDownloadsShort": {
+    "message": "İndirme"
+  },
+  "modTrackerShort": {
+    "message": "Takip Pikseli"
+  },
+  "lastScanTitle": {
+    "message": "Son Tarama"
+  },
+  "lastScanEmpty": {
+    "message": "Henüz tarama kaydı yok. Bir webmail açtığınızda veya dosya indirdiğinizde özet burada görünür."
+  },
+  "quickScanTitle": {
+    "message": "URL / Metin / ClickFix Tarama"
+  },
+  "quickScanHint": {
+    "message": "Ctrl + Enter"
+  },
+  "quickScanPlaceholder": {
+    "message": "Şüpheli link, e-posta metni veya PowerShell/CMD komutu yapıştırın…"
+  },
+  "scanBtn": {
+    "message": "Tara"
+  },
+  "scanBtnBusy": {
+    "message": "Taranıyor…"
+  },
+  "clearInputBtn": {
+    "message": "Temizle"
+  },
+  "alertsTitle": {
+    "message": "Son Alarmlar"
+  },
+  "alertsEmpty": {
+    "message": "Henüz alarm yok. Şüpheli e-posta, link veya indirme tespit edilince burada listelenir."
+  },
+  "filterAll": {
+    "message": "Tümü"
+  },
+  "filterHigh": {
+    "message": "Yüksek+"
+  },
+  "filterMedium": {
+    "message": "Orta"
+  },
+  "openSettings": {
+    "message": "Ayarlar ve Mağaza Bağlantısı"
+  },
+  "footerLocal": {
+    "message": "%100 Yerel"
+  },
+  "riskLow": {
+    "message": "Düşük"
+  },
+  "riskMedium": {
+    "message": "Orta"
+  },
+  "riskHigh": {
+    "message": "Yüksek"
+  },
+  "riskCritical": {
+    "message": "Kritik"
+  },
+  "optTitle": {
+    "message": "ElfSec Ayarlar"
+  },
+  "optSubtitle": {
+    "message": "Yerel e-posta, bağlantı ve indirme güvenlik merkezi"
+  },
+  "navShields": {
+    "message": "Kalkanlar & Tema"
+  },
+  "navNative": {
+    "message": "Masaüstü Köprüsü"
+  },
+  "navTrusted": {
+    "message": "Güvenilen Alan Adları"
+  },
+  "navBrands": {
+    "message": "Marka Koruması"
+  },
+  "navHistory": {
+    "message": "İstatistik & Geçmiş"
+  },
+  "navAbout": {
+    "message": "Gizlilik & Hakkında"
+  },
+  "privacyNote": {
+    "message": "Tüm analiz %100 cihazınızda çalışır. Hiçbir veri dış sunucuya veya buluta gönderilmez."
+  },
+  "modWebmailTitle": {
+    "message": "Webmail otomatik kalkanı"
+  },
+  "modWebmailDesc": {
+    "message": "Gmail, Outlook Web, Yahoo, Yandex, iCloud ve Proton Mail içeriğini yerelde analiz eder."
+  },
+  "modModalTitle": {
+    "message": "Şüpheli bağlantı engelleyici modalı"
+  },
+  "modModalDesc": {
+    "message": "Riskli veya hedef uyuşmazlığı olan linklere tıklandığında güvenli uyarı ekranı açar."
+  },
+  "modDownloadsTitle": {
+    "message": "Tarayıcı indirme kalkanı"
+  },
+  "modDownloadsDesc": {
+    "message": "Çift uzantı (.pdf.exe), RLO sahteciliği, betik ve zararlı kaynakları indirilirken denetler."
+  },
+  "modTrackerTitle": {
+    "message": "1x1 takip pikseli sayacı"
+  },
+  "modTrackerDesc": {
+    "message": "Açılan e-postalardaki gizli okundu bilgisi takip piksellerini sayar ve bannerda gösterir."
+  },
+  "themeTitle": {
+    "message": "Görünüm Teması"
+  },
+  "themeAuto": {
+    "message": "Sistem"
+  },
+  "themeDark": {
+    "message": "Koyu"
+  },
+  "themeLight": {
+    "message": "Açık"
+  },
+  "nativeTitle": {
+    "message": "Masaüstü Native Host Bağlantısı"
+  },
+  "nativeDesc": {
+    "message": "Bu uzantıyı yerel elfsec.exe motoruyla eşleyerek derin dosya (PE/MotW/LOLBin) taraması ve ortak uyarı günlüğü elde edin."
+  },
+  "nativeTestBtn": {
+    "message": "Bağlantıyı Test Et"
+  },
+  "copyCmdBtn": {
+    "message": "Komutu Kopyala"
+  },
+  "copiedMsg": {
+    "message": "Komut panoya kopyalandı."
+  },
+  "copyFailMsg": {
+    "message": "Kopyalanamadı — komutu elle seçin."
+  },
+  "trustedTitle": {
+    "message": "Güvenilen Alan Adları"
+  },
+  "trustedDesc": {
+    "message": "Bu alan adlarından gelen e-postalar izin listesinde sayılır ve yanlış pozitif üretmez."
+  },
+  "addBtn": {
+    "message": "Ekle"
+  },
+  "brandsTitle": {
+    "message": "Özel Doğrulanmış Markalar"
+  },
+  "brandsDesc": {
+    "message": "Kendi kurumunuzun resmi alan adını ve gönderici adresini ekleyerek taklit e-postaları işaretletin."
+  },
+  "addBrandBtn": {
+    "message": "Marka Ekle"
+  },
+  "builtinBrandsTitle": {
+    "message": "Yerleşik Doğrulanmış Markalar"
+  },
+  "historyTitle": {
+    "message": "İstatistikler ve Geçmiş"
+  },
+  "exportJsonBtn": {
+    "message": "Geçmişi JSON İndir"
+  },
+  "clearHistoryBtn": {
+    "message": "Geçmişi Temizle"
+  },
+  "confirmClearPrompt": {
+    "message": "Tüm sayaç ve alarmlar silinsin mi?"
+  },
+  "confirmYesBtn": {
+    "message": "Evet, Sil"
+  },
+  "confirmCancelBtn": {
+    "message": "Vazgeç"
+  },
+  "aboutTitle": {
+    "message": "Gizlilik Garantisi ve Desteklenen Sağlayıcılar"
   }
 }

@@ -1,10 +1,18 @@
 # CHANGELOG
 
-## Yayınlanmamış — Arayüz Yenileme
+## Yayınlanmamış — Uzantı Tamamlama & Profesyonel Tasarım Yenilemesi
 
-- **Popup paneli (`extension/popup.html`, `popup.js`):** Marka başlığı ve kalkan logosu, üçlü istatistik kartları, daha büyük dokunma hedefli koruma anahtarı, geniş "Tara" butonu ve seviye renkli alarm kartları. Durum rozeti artık native bağlantı sürümünü gösteriyor; sonuç ve alarm metinleri `textContent` ile güvenli biçimde basılıyor.
-- **Ayarlar sayfası (`extension/options.html`, `options.js`):** Kart tabanlı düzen, özel onay kutuları, gizlilik vurgusu, Enter ile ekleme, kopyalama hatası geri bildirimi ve `replaceChildren` ile güvenli liste çizimi.
-- **E-posta şeridi / hover balonu / engel modalı / toast (`banner.css`, `content.js`):** ElfSec kalkan işareti, seviye etiketleri (Düşük/Orta/Yüksek/Kritik), gerçek alan adını öne çıkaran hedef balonu, odak tuzağı + ESC desteği olan erişilebilir modal ve `prefers-color-scheme` ile otomatik açık/koyu tema. `prefers-reduced-motion` desteği eklendi.
+- **Profesyonel İkon Seti (`extension/icons/`, `manifest.json`):** 16x16, 32x32, 48x48 ve 128x128 boyutlarında 4x supersampling anti-aliased şeffaf kalkan ikonları üretildi; manifest 32px ikonu da içerecek şekilde güncellendi.
+- **Ortak Tasarım Sistemi & Tam TR/EN Yerelleştirme (`extension/shared.css`, `extension/i18n.js`, `_locales/`):** Sistem / Koyu / Açık tema seçimi (`data-theme` + `prefers-color-scheme`) ve tüm arayüz metinleri için eksiksiz TR/EN yerelleştirme anahtarları eklendi.
+- **Yedek Motor & Arka Plan Düzeltmeleri (`extension/fallback_analyzer.js`, `extension/background.js`):**
+  - Yerleşik marka kayıt defteri `verified_senders.py` ile tam senkronize edildi (Turkcell, Türk Telekom, Vodafone dahil 22 marka + `getVerifiedBrands()`); `.docm`/`.xlsm`/`.pptm` makro ek denetimi eklendi.
+  - İndirme kalkanında `onCreated` + `onChanged` çift sayım/çift bildirim hatası giderildi; sağ-tık menüsü webmail dışındaki sayfalarda da masaüstü bildirimiyle çalışır hale getirildi.
+  - `OFF` global rozeti, `TRUST_DOMAIN` / `UNTRUST_DOMAIN` / `GET_VERIFIED_BRANDS` / `CLEAR_ALERTS` mesajları ve açık sekmelere anlık `SETTINGS_CHANGED` yayını eklendi.
+- **Popup & Ayarlar & Webmail Arayüzü (`extension/popup.*`, `extension/options.*`, `extension/content.js`, `extension/banner.css`):**
+  - Emojiler yerine keskin inline SVG ikonlar kullanıldı.
+  - Popup 3 sekmeli (Genel, Hızlı Tarama, Alarmlar) yapıya, 4'lü KPI ızgarasına, hızlı kalkan anahtarlarına, son tarama özetine ve risk ilerleme çubuklu sonuç kartına kavuştu.
+  - Ayarlar sayfası sol kenar çubuklu 2 sütunlu düzene, canlı Native Host testine, tema seçicisine, satır içi alan adı/marka doğrulamasına, aranabilir 22 yerleşik marka kataloğuna ve 2 adımlı silme onayına geçirildi.
+  - Webmail içerik betiğinde görünür Gmail mesaj gövdesi seçimi, sıkı Outlook ek eşleşmesi, kompakt açılır/kapanır `LOW` risk banner'ı ("Detay" ve "Bu alana güven"), protokol rozetli hover önizleme ve karşılaştırmalı engel modalı eklendi.
 
 ## v1.6.0 — Mağaza Hazır Tarayıcı Uzantısı (Chrome / Edge / Firefox) + İndirme & Link Kalkanı
 

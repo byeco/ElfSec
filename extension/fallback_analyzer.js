@@ -44,8 +44,8 @@
   var FREEMAIL = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "yandex.com", "proton.me", "icloud.com", "live.com"];
   var BRAND_WORDS = [
     "banka", "bank", "garanti", "akbank", "ziraat", "isbank", "işbank", "yapikredi", "yapıkredi",
-    "paypal", "apple", "microsoft", "netflix", "vodafone", "turkcell", "e-devlet", "edevlet",
-    "ptt", "kargo", "trendyol", "hepsiburada", "amazon"
+    "paypal", "apple", "microsoft", "netflix", "vodafone", "turkcell", "türk telekom", "turk telekom",
+    "e-devlet", "edevlet", "ptt", "kargo", "trendyol", "hepsiburada", "amazon"
   ];
   var EXEC_EXT = [".exe", ".msi", ".scr", ".com", ".pif", ".cpl", ".dll", ".iso", ".img", ".jar"];
   var SCRIPT_EXT = [".ps1", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".hta", ".reg", ".lnk"];
@@ -54,6 +54,7 @@
   var RISKY_EXT = EXEC_EXT.concat(SCRIPT_EXT).concat(ARCHIVE_EXT);
   var DOC_EXT = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".jpg", ".jpeg", ".png", ".txt"];
 
+  /* backend/app/verified_senders.py ile senkronize 22 resmi marka */
   var VERIFIED_BRANDS = [
     {
       id: "apple", label: "Apple",
@@ -70,26 +71,136 @@
     {
       id: "microsoft", label: "Microsoft",
       aliases: ["microsoft", "outlook", "office 365", "onedrive", "xbox"],
-      domains: ["microsoft.com", "accountprotection.microsoft.com", "email.microsoft.com", "communication.microsoft.com"],
+      domains: ["microsoft.com", "accountprotection.microsoft.com", "email.microsoft.com", "mail.support.microsoft.com", "communication.microsoft.com"],
       emails: ["account-security-noreply@accountprotection.microsoft.com", "msa@communication.microsoft.com", "noreply@microsoft.com"]
     },
-    { id: "paypal", label: "PayPal", aliases: ["paypal"], domains: ["paypal.com", "mail.paypal.com"], emails: ["service@paypal.com", "paypal@mail.paypal.com"] },
-    { id: "amazon", label: "Amazon", aliases: ["amazon", "amazon prime"], domains: ["amazon.com", "amazon.com.tr"], emails: ["no-reply@amazon.com", "auto-confirm@amazon.com"] },
-    { id: "netflix", label: "Netflix", aliases: ["netflix"], domains: ["netflix.com", "mailer.netflix.com", "account.netflix.com"], emails: ["info@account.netflix.com"] },
-    { id: "meta", label: "Meta / Instagram", aliases: ["instagram", "facebook", "whatsapp", "meta"], domains: ["mail.instagram.com", "facebookmail.com", "whatsapp.com", "meta.com"], emails: ["security@mail.instagram.com", "security@facebookmail.com"] },
-    { id: "github", label: "GitHub", aliases: ["github"], domains: ["github.com"], emails: ["noreply@github.com"] },
-    { id: "steam", label: "Steam", aliases: ["steam", "steampowered"], domains: ["steampowered.com"], emails: ["noreply@steampowered.com"] },
-    { id: "discord", label: "Discord", aliases: ["discord"], domains: ["discord.com", "discordapp.com"], emails: ["noreply@discord.com"] },
-    { id: "edevlet", label: "e-Devlet", aliases: ["e-devlet", "edevlet", "turkiye.gov"], domains: ["turkiye.gov.tr"], emails: ["bilgilendirme@turkiye.gov.tr"] },
-    { id: "garanti", label: "Garanti BBVA", aliases: ["garanti", "garanti bbva"], domains: ["garanti.com.tr", "garantibbva.com.tr"], emails: ["bilgilendirme@garantibbva.com.tr"] },
-    { id: "akbank", label: "Akbank", aliases: ["akbank"], domains: ["akbank.com"], emails: ["bilgilendirme@akbank.com"] },
-    { id: "ziraat", label: "Ziraat Bankası", aliases: ["ziraat", "ziraat bank"], domains: ["ziraatbank.com.tr"], emails: ["bilgilendirme@ziraatbank.com.tr"] },
-    { id: "isbank", label: "İş Bankası", aliases: ["isbank", "işbank", "iş bankası", "is bankasi"], domains: ["isbank.com.tr"], emails: ["bilgilendirme@isbank.com.tr"] },
-    { id: "yapikredi", label: "Yapı Kredi", aliases: ["yapikredi", "yapıkredi", "yapı kredi"], domains: ["yapikredi.com.tr"], emails: ["bilgilendirme@yapikredi.com.tr"] },
-    { id: "ptt", label: "PTT", aliases: ["ptt", "ptt kargo"], domains: ["ptt.gov.tr", "pttavm.com"], emails: ["bilgi@ptt.gov.tr"] },
-    { id: "trendyol", label: "Trendyol", aliases: ["trendyol"], domains: ["trendyol.com", "mail.trendyol.com"], emails: ["no-reply@trendyol.com"] },
-    { id: "hepsiburada", label: "Hepsiburada", aliases: ["hepsiburada"], domains: ["hepsiburada.com"], emails: ["no-reply@hepsiburada.com"] }
+    {
+      id: "paypal", label: "PayPal",
+      aliases: ["paypal"],
+      domains: ["paypal.com", "mail.paypal.com"],
+      emails: ["service@paypal.com", "paypal@mail.paypal.com"]
+    },
+    {
+      id: "amazon", label: "Amazon",
+      aliases: ["amazon", "amazon prime"],
+      domains: ["amazon.com", "amazon.com.tr"],
+      emails: ["no-reply@amazon.com", "auto-confirm@amazon.com", "siparis-guncelleme@amazon.com.tr"]
+    },
+    {
+      id: "netflix", label: "Netflix",
+      aliases: ["netflix"],
+      domains: ["netflix.com", "mailer.netflix.com", "account.netflix.com"],
+      emails: ["info@account.netflix.com", "info@mailer.netflix.com"]
+    },
+    {
+      id: "meta", label: "Meta / Instagram",
+      aliases: ["instagram", "facebook", "whatsapp", "meta"],
+      domains: ["mail.instagram.com", "facebookmail.com", "whatsapp.com", "meta.com"],
+      emails: ["security@mail.instagram.com", "security@facebookmail.com", "no-reply@mail.instagram.com"]
+    },
+    {
+      id: "github", label: "GitHub",
+      aliases: ["github"],
+      domains: ["github.com"],
+      emails: ["noreply@github.com"]
+    },
+    {
+      id: "steam", label: "Steam",
+      aliases: ["steam", "steampowered"],
+      domains: ["steampowered.com"],
+      emails: ["noreply@steampowered.com"]
+    },
+    {
+      id: "discord", label: "Discord",
+      aliases: ["discord"],
+      domains: ["discord.com", "discordapp.com"],
+      emails: ["noreply@discord.com"]
+    },
+    {
+      id: "edevlet", label: "e-Devlet",
+      aliases: ["e-devlet", "edevlet", "turkiye.gov"],
+      domains: ["turkiye.gov.tr"],
+      emails: ["bilgilendirme@turkiye.gov.tr", "noreply@turkiye.gov.tr"]
+    },
+    {
+      id: "garanti", label: "Garanti BBVA",
+      aliases: ["garanti", "garanti bbva"],
+      domains: ["garanti.com.tr", "garantibbva.com.tr"],
+      emails: ["bilgilendirme@garantibbva.com.tr", "noreply@garantibbva.com.tr"]
+    },
+    {
+      id: "akbank", label: "Akbank",
+      aliases: ["akbank"],
+      domains: ["akbank.com"],
+      emails: ["bilgilendirme@akbank.com", "noreply@akbank.com"]
+    },
+    {
+      id: "ziraat", label: "Ziraat Bankası",
+      aliases: ["ziraat", "ziraat bank", "ziraat bankası", "ziraat bankasi"],
+      domains: ["ziraatbank.com.tr"],
+      emails: ["bilgilendirme@ziraatbank.com.tr", "noreply@ziraatbank.com.tr"]
+    },
+    {
+      id: "isbank", label: "İş Bankası",
+      aliases: ["işbank", "isbank", "iş bankası", "is bankasi"],
+      domains: ["isbank.com.tr"],
+      emails: ["bilgilendirme@isbank.com.tr", "noreply@isbank.com.tr"]
+    },
+    {
+      id: "yapikredi", label: "Yapı Kredi",
+      aliases: ["yapıkredi", "yapikredi", "yapı kredi", "yapi kredi"],
+      domains: ["yapikredi.com.tr"],
+      emails: ["bilgilendirme@yapikredi.com.tr", "noreply@yapikredi.com.tr"]
+    },
+    {
+      id: "ptt", label: "PTT",
+      aliases: ["ptt", "ptt kargo"],
+      domains: ["ptt.gov.tr", "pttavm.com"],
+      emails: ["bilgi@ptt.gov.tr", "noreply@ptt.gov.tr"]
+    },
+    {
+      id: "trendyol", label: "Trendyol",
+      aliases: ["trendyol"],
+      domains: ["trendyol.com", "mail.trendyol.com"],
+      emails: ["no-reply@trendyol.com", "bilgi@mail.trendyol.com"]
+    },
+    {
+      id: "hepsiburada", label: "Hepsiburada",
+      aliases: ["hepsiburada"],
+      domains: ["hepsiburada.com"],
+      emails: ["no-reply@hepsiburada.com", "bilgi@hepsiburada.com"]
+    },
+    {
+      id: "turkcell", label: "Turkcell",
+      aliases: ["turkcell"],
+      domains: ["turkcell.com.tr"],
+      emails: ["bilgilendirme@turkcell.com.tr"]
+    },
+    {
+      id: "turktelekom", label: "Türk Telekom",
+      aliases: ["türk telekom", "turk telekom", "turktelekom"],
+      domains: ["turktelekom.com.tr"],
+      emails: ["bilgilendirme@turktelekom.com.tr"]
+    },
+    {
+      id: "vodafone", label: "Vodafone",
+      aliases: ["vodafone"],
+      domains: ["vodafone.com.tr"],
+      emails: ["bilgilendirme@vodafone.com.tr"]
+    }
   ];
+
+  function getVerifiedBrands() {
+    return VERIFIED_BRANDS.map(function (b) {
+      return {
+        id: b.id,
+        label: b.label,
+        aliases: b.aliases.slice(),
+        domains: b.domains.slice(),
+        emails: b.emails.slice()
+      };
+    });
+  }
 
   function extractUrls(text) {
     var re = /https?:\/\/[^\s<>'"]+/gi;
@@ -324,6 +435,9 @@
           DOC_EXT.indexOf("." + parts[parts.length - 2]) !== -1) {
         score += 25;
         reasons.push("Çift uzantı tuzağı: " + fn);
+      } else if (MACRO_EXT.some(function (e) { return fn.endsWith(e); })) {
+        score += 15;
+        reasons.push("Makrolu Office eki: " + fn);
       } else if (RISKY_EXT.some(function (e) { return fn.endsWith(e); })) {
         score += 20;
         reasons.push("Riskli ek: " + fn);
@@ -361,7 +475,7 @@
     };
   }
 
-  function analyzeText(text) {
+  function analyzeText(text, options) {
     var raw = String(text || "").trim();
     if (!raw) {
       return {
@@ -375,7 +489,7 @@
       };
     }
     var clickfix = CLICKFIX_PATTERNS.some(function (p) { return p.test(raw); });
-    var rep = analyzeEmail({ subject: "", sender: "", body: raw });
+    var rep = analyzeEmail({ subject: "", sender: "", body: raw }, options);
     var score = rep.risk_score + (clickfix ? 40 : 0);
     var reasons = rep.reasons.filter(function (r) {
       return r !== "Bilinen oltalama / injection kalıbı eşleşmedi.";
@@ -462,6 +576,7 @@
     analyzeText: analyzeText,
     analyzeDownload: analyzeDownload,
     verifySender: verifySender,
+    getVerifiedBrands: getVerifiedBrands,
     extractUrls: extractUrls,
     checkUrl: checkUrl
   };

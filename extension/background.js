@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   linkModal: true,
   downloadsShield: true,
   trackerCounter: true,
+  theme: "auto",
   trustedDomains: [],
   customBrands: []
 };
@@ -28,10 +29,25 @@ const BADGE_COLORS = {
   HIGH: "#ef4444",
   CRITICAL: "#b91c1c"
 };
+const RISK_ORDER = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
 const MAX_SCAN_TEXT = 10000;
+const DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+
+/* Aynı indirme öğesinin onCreated + onChanged akışlarında çift sayılmasını/çift bildirilmesini engeller. */
+const seenDownloads = new Map();
 
 function cleanString(value, max) {
   return String(value == null ? "" : value).trim().slice(0, max);
+}
+
+function normalizeTheme(value) {
+  return value === "dark" || value === "light" ? value : "auto";
+}
+
+function normalizeDomain(value) {
+  let d = cleanString(value, 253).toLowerCase().replace(/^https?:\/\//, "").replace(/^@/, "");
+  d = d.split("/")[0].split(":")[0].replace(/\.$/, "");
+  return DOMAIN_RE.test(d) ? d : "";
 }
 
 /* Depodan/mesajdan gelen ayarları beyaz listeye göre temizle (prototype pollution
@@ -42,12 +58,20 @@ function sanitizeSettings(partial, base) {
   ["enabled", "webmailShield", "linkModal", "downloadsShield", "trackerCounter"].forEach((k) => {
     if (Object.prototype.hasOwnProperty.call(partial, k)) out[k] = Boolean(partial[k]);
   });
+  if (Object.prototype.hasOwnProperty.call(partial, "theme")) {
+    out.theme = normalizeTheme(partial.theme);
+  } else {
+    out.theme = normalizeTheme(out.theme);
+  }
   if (Array.isArray(partial.trustedDomains)) {
-    out.trustedDomains = partial.trustedDomains
-      .filter((d) => typeof d === "string")
-      .map((d) => cleanString(d, 253).toLowerCase())
-      .filter(Boolean)
-      .slice(0, 200);
+    const uniq = new Set();
+    partial.trustedDomains.forEach((d) => {
+      if (typeof d === "string") {
+        const clean = normalizeDomain(d);
+        if (clean) uniq.add(clean);
+      }
+    });
+    out.trustedDomains = Array.from(uniq).slice(0, 200);
   }
   if (Array.isArray(partial.customBrands)) {
     out.customBrands = partial.customBrands
@@ -56,7 +80,7 @@ function sanitizeSettings(partial, base) {
         label: cleanString(b.label, 80),
         domains: (Array.isArray(b.domains) ? b.domains : [])
           .filter((d) => typeof d === "string")
-          .map((d) => cleanString(d, 253).toLowerCase())
+          .map((d) => normalizeDomain(d))
           .filter(Boolean)
           .slice(0, 10),
         emails: (Array.isArray(b.emails) ? b.emails : [])
@@ -106,6 +130,35 @@ async function getState() {
   return { ...data, enabled: settings.enabled, settings, stats };
 }
 
+async function syncGlobalBadge(enabled) {
+  try {
+    if (!enabled) {
+      await chrome.action.setBadgeBackgroundColor({ color: "#64748b" });
+      await chrome.action.setBadgeText({ text: "OFF" });
+    } else {
+      await chrome.action.setBadgeText({ text: "" });
+    }
+  } catch (_e) {
+    /* İzin veya tarayıcı farkı */
+  }
+}
+
+function broadcastSettings(settings) {
+  try {
+    if (!chrome.tabs || !chrome.tabs.query) return;
+    chrome.tabs.query({}, (tabs) => {
+      if (chrome.runtime.lastError || !Array.isArray(tabs)) return;
+      tabs.forEach((tab) => {
+        if (tab && tab.id) {
+          chrome.tabs.sendMessage(tab.id, { type: "SETTINGS_CHANGED", settings }).catch(() => {});
+        }
+      });
+    });
+  } catch (_e) {
+    /* Sekmelere yayın opsiyonel */
+  }
+}
+
 async function updateBadge(tabId, report) {
   if (!tabId || !report) return;
   const lvl = report.risk_level || "LOW";
@@ -118,44 +171,95 @@ async function updateBadge(tabId, report) {
   }
 }
 
-async function recordScan(report, nativeConnected, nativeVersion) {
+async function getDownloadTrack(id) {
+  if (seenDownloads.has(id)) return seenDownloads.get(id);
+  try {
+    if (chrome.storage && chrome.storage.session) {
+      const key = `dl_${id}`;
+      const res = await chrome.storage.session.get(key);
+      if (res && res[key]) {
+        seenDownloads.set(id, res[key]);
+        return res[key];
+      }
+    }
+  } catch (_e) {
+    /* session storage yoksa bellek haritası yeterli */
+  }
+  return null;
+}
+
+async function setDownloadTrack(id, info) {
+  seenDownloads.set(id, info);
+  if (seenDownloads.size > 200) {
+    const firstKey = seenDownloads.keys().next().value;
+    seenDownloads.delete(firstKey);
+  }
+  try {
+    if (chrome.storage && chrome.storage.session) {
+      await chrome.storage.session.set({ [`dl_${id}`]: info });
+    }
+  } catch (_e) {
+    /* yoksay */
+  }
+}
+
+async function recordScan(report, nativeConnected, nativeVersion, options) {
+  const opts = options || {};
   const st = await getState();
   const stats = { ...st.stats };
-  if (report.source === "browser_download") {
-    stats.downloadsChecked += 1;
-    if (report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
-      stats.riskyDownloads += 1;
-      stats.threatsBlocked += 1;
-    }
-  } else {
-    stats.emailsScanned += 1;
-    if (report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
-      stats.threatsBlocked += 1;
-    }
-    const sv = report.sender_verification || {};
-    if (sv.status === "VERIFIED_STRONG" || sv.status === "VERIFIED_DOMAIN") {
-      stats.verifiedMatched += 1;
+  const src = report.source || "webmail";
+
+  if (!opts.skipStats) {
+    if (src === "browser_download") {
+      stats.downloadsChecked += 1;
+      if (report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
+        stats.riskyDownloads += 1;
+        stats.threatsBlocked += 1;
+      }
+    } else if (src === "context_menu" || src === "quick_scan") {
+      if (report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
+        stats.threatsBlocked += 1;
+      }
+    } else {
+      stats.emailsScanned += 1;
+      if (report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
+        stats.threatsBlocked += 1;
+      }
+      const sv = report.sender_verification || {};
+      if (sv.status === "VERIFIED_STRONG" || sv.status === "VERIFIED_DOMAIN") {
+        stats.verifiedMatched += 1;
+      }
     }
   }
 
   const alerts = Array.isArray(st.recentAlerts) ? st.recentAlerts.slice() : [];
   if (report.risk_level === "MEDIUM" || report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
+    const providerName =
+      report.provider ||
+      (src === "browser_download" ? "download" : (src === "context_menu" || src === "quick_scan" ? "web" : "webmail"));
+    const title =
+      report.subject ||
+      report.filename ||
+      (report.reasons && report.reasons[0]) ||
+      report.summary ||
+      "(konu yok)";
     alerts.unshift({
       at: new Date().toISOString(),
-      source: report.source || "webmail",
-      provider: report.provider || (report.source === "browser_download" ? "download" : "webmail"),
-      subject: String(report.subject || report.filename || "(konu yok)").slice(0, 120),
-      sender: String(report.sender || report.url || "").slice(0, 80),
+      source: src,
+      provider: providerName,
+      subject: String(title).slice(0, 120),
+      sender: String(report.sender || report.url || report.target || "").slice(0, 80),
       risk_score: report.risk_score,
       risk_level: report.risk_level,
       via: nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek"
     });
   }
 
+  const lastScan = { ...report, scanned_at: new Date().toISOString() };
   await chrome.storage.local.set({
     nativeConnected,
     nativeVersion: nativeVersion || st.nativeVersion,
-    lastScan: report,
+    lastScan,
     stats,
     recentAlerts: alerts.slice(0, 50)
   });
@@ -175,7 +279,13 @@ async function scanEmail(payload, tabId) {
   if (isTrusted) {
     const trustedReport = ElfSecFallback.analyzeEmail(payload, st.settings);
     trustedReport.provider = payload.provider || "webmail";
+    trustedReport.subject = payload.subject || "";
+    trustedReport.sender = payload.sender || "";
     trustedReport.via = "Güvenilen Liste";
+    trustedReport.linkModal = Boolean(st.settings.linkModal);
+    trustedReport.trackerCounter = Boolean(st.settings.trackerCounter);
+    trustedReport.theme = st.settings.theme || "auto";
+    trustedReport.trustedDomain = senderDom;
     await updateBadge(tabId, trustedReport);
     await recordScan(trustedReport, st.nativeConnected, st.nativeVersion);
     return trustedReport;
@@ -203,18 +313,35 @@ async function scanEmail(payload, tabId) {
   report.via = nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek Motoru";
   report.linkModal = Boolean(st.settings.linkModal);
   report.trackerCounter = Boolean(st.settings.trackerCounter);
+  report.theme = st.settings.theme || "auto";
+  report.trustedDomain = "";
   await updateBadge(tabId, report);
   await recordScan(report, nativeConnected, nativeVersion);
   return report;
 }
 
-async function scanTextOrUrl(text) {
-  let report = await sendToNative({ action: "analyze_url", text: String(text || "") });
+async function scanTextOrUrl(text, source) {
+  const st = await getState();
+  const cleanText = String(text || "").slice(0, MAX_SCAN_TEXT);
+  let report = await sendToNative({ action: "analyze_url", text: cleanText });
   const nativeConnected = Boolean(report && report.ok);
+  const nativeVersion = nativeConnected ? (report.version || "") : st.nativeVersion;
   if (!nativeConnected) {
-    report = ElfSecFallback.analyzeText(text);
+    report = ElfSecFallback.analyzeText(cleanText, st.settings);
   }
   report.via = nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek Motoru";
+  report.source = source || "quick_scan";
+  report.provider = "web";
+  report.target = cleanText.slice(0, 120);
+  if (report.risk_level === "MEDIUM" || report.risk_level === "HIGH" || report.risk_level === "CRITICAL") {
+    await recordScan(report, nativeConnected, nativeVersion);
+  } else {
+    await chrome.storage.local.set({
+      nativeConnected,
+      nativeVersion,
+      lastScan: { ...report, scanned_at: new Date().toISOString() }
+    });
+  }
   return report;
 }
 
@@ -235,7 +362,25 @@ function notifyRiskyDownload(report) {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+function notifyTextScan(report, target) {
+  try {
+    if (!chrome.notifications || !chrome.notifications.create) return;
+    const lvl = String((report && report.risk_level) || "LOW").toUpperCase();
+    const score = Number(report && report.risk_score) || 0;
+    const reason = (report && report.reasons && report.reasons[0]) || (report && report.summary) || String(target || "");
+    chrome.notifications.create(`elfsec-ctx-${Date.now()}`, {
+      type: "basic",
+      iconUrl: "icons/icon128.png",
+      title: `ElfSec Tarama [${lvl}] ${score}/100`,
+      message: `${reason}`.slice(0, 220),
+      priority: lvl === "HIGH" || lvl === "CRITICAL" ? 2 : 0
+    });
+  } catch (_e) {
+    // Bildirim izni yoksa sessiz geç
+  }
+}
+
+function ensureContextMenus() {
   try {
     chrome.contextMenus.removeAll(() => {
       const selTitle = (chrome.i18n && chrome.i18n.getMessage("ctxScanSelection")) || "ElfSec ile Seçili Metni Tara";
@@ -246,14 +391,34 @@ chrome.runtime.onInstalled.addListener(() => {
   } catch (_e) {
     // Menü oluşturulamazsa sessiz geç
   }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensureContextMenus();
+  getState().then((st) => syncGlobalBadge(st.enabled)).catch(() => {});
 });
+
+if (chrome.runtime.onStartup) {
+  chrome.runtime.onStartup.addListener(() => {
+    getState().then((st) => syncGlobalBadge(st.enabled)).catch(() => {});
+  });
+}
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const target = info.linkUrl || info.selectionText || "";
   if (!target) return;
-  const report = await scanTextOrUrl(target);
+  const report = await scanTextOrUrl(target, "context_menu");
+  let shownInTab = false;
   if (tab && tab.id) {
-    chrome.tabs.sendMessage(tab.id, { type: "SHOW_TOAST", report, target }).catch(() => {});
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "SHOW_TOAST", report, target });
+      shownInTab = true;
+    } catch (_e) {
+      shownInTab = false;
+    }
+  }
+  if (!shownInTab) {
+    notifyTextScan(report, target);
   }
 });
 
@@ -265,8 +430,13 @@ if (chrome.downloads && chrome.downloads.onCreated) {
       filename: item.filename || item.url || "",
       url: item.finalUrl || item.url || ""
     });
-    if (rep.risk_level === "HIGH" || rep.risk_level === "CRITICAL") {
-      await recordScan(rep, false, st.nativeVersion);
+    const isHigh = rep.risk_level === "HIGH" || rep.risk_level === "CRITICAL";
+    await setDownloadTrack(item.id, {
+      earlyAlerted: isHigh,
+      earlyLevel: rep.risk_level || "LOW",
+      completed: false
+    });
+    if (isHigh) {
       notifyRiskyDownload(rep);
     }
   });
@@ -275,6 +445,9 @@ if (chrome.downloads && chrome.downloads.onCreated) {
     if (!delta || !delta.state || delta.state.current !== "complete") return;
     const st = await getState();
     if (!st.enabled || !st.settings.downloadsShield) return;
+    const prev = await getDownloadTrack(delta.id);
+    if (prev && prev.completed) return;
+
     chrome.downloads.search({ id: delta.id }, async (items) => {
       if (!items || !items.length || !items[0].filename) return;
       const dl = items[0];
@@ -286,8 +459,19 @@ if (chrome.downloads && chrome.downloads.onCreated) {
           url: dl.finalUrl || dl.url || ""
         });
       }
+      const lvl = rep.risk_level || "LOW";
+      const isHigh = lvl === "HIGH" || lvl === "CRITICAL";
+      const escalated = prev && prev.earlyAlerted
+        ? (RISK_ORDER[lvl] || 0) > (RISK_ORDER[prev.earlyLevel] || 0)
+        : false;
+
+      await setDownloadTrack(delta.id, {
+        earlyAlerted: Boolean((prev && prev.earlyAlerted) || isHigh),
+        earlyLevel: lvl,
+        completed: true
+      });
       await recordScan(rep, nativeOk, nativeOk ? (rep.version || "") : st.nativeVersion);
-      if (rep.risk_level === "HIGH" || rep.risk_level === "CRITICAL") {
+      if (isHigh && (!prev || !prev.earlyAlerted || escalated)) {
         notifyRiskyDownload(rep);
       }
     });
@@ -321,7 +505,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === "SCAN_TEXT") {
-    scanTextOrUrl(String(msg.text || "").slice(0, MAX_SCAN_TEXT)).then(sendResponse);
+    scanTextOrUrl(msg.text || "", "quick_scan").then(sendResponse);
     return true;
   }
   if (msg.type === "SCAN_LINK_PREVIEW") {
@@ -333,11 +517,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getState().then(sendResponse);
     return true;
   }
+  if (msg.type === "GET_VERIFIED_BRANDS") {
+    const brands = typeof ElfSecFallback.getVerifiedBrands === "function"
+      ? ElfSecFallback.getVerifiedBrands()
+      : [];
+    sendResponse({ ok: true, brands });
+    return false;
+  }
   if (msg.type === "SET_ENABLED") {
     getState().then(async (st) => {
       const next = { ...st.settings, enabled: Boolean(msg.enabled) };
       await chrome.storage.local.set({ enabled: next.enabled, settings: next });
-      sendResponse({ ok: true, enabled: next.enabled });
+      await syncGlobalBadge(next.enabled);
+      broadcastSettings(next);
+      sendResponse({ ok: true, enabled: next.enabled, settings: next });
     });
     return true;
   }
@@ -345,8 +538,41 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getState().then(async (st) => {
       const next = sanitizeSettings(msg.settings, st.settings);
       await chrome.storage.local.set({ enabled: Boolean(next.enabled), settings: next });
+      await syncGlobalBadge(next.enabled);
+      broadcastSettings(next);
       sendResponse({ ok: true, settings: next });
     });
+    return true;
+  }
+  if (msg.type === "TRUST_DOMAIN") {
+    const dom = normalizeDomain(msg.domain || "");
+    if (!dom) {
+      sendResponse({ ok: false, error: "Geçersiz alan adı." });
+      return false;
+    }
+    getState().then(async (st) => {
+      const list = (st.settings.trustedDomains || []).slice();
+      if (!list.includes(dom)) list.push(dom);
+      const next = sanitizeSettings({ trustedDomains: list }, st.settings);
+      await chrome.storage.local.set({ settings: next });
+      broadcastSettings(next);
+      sendResponse({ ok: true, domain: dom, settings: next });
+    });
+    return true;
+  }
+  if (msg.type === "UNTRUST_DOMAIN") {
+    const dom = normalizeDomain(msg.domain || "");
+    getState().then(async (st) => {
+      const list = (st.settings.trustedDomains || []).filter((d) => d !== dom);
+      const next = sanitizeSettings({ trustedDomains: list }, st.settings);
+      await chrome.storage.local.set({ settings: next });
+      broadcastSettings(next);
+      sendResponse({ ok: true, domain: dom, settings: next });
+    });
+    return true;
+  }
+  if (msg.type === "CLEAR_ALERTS") {
+    chrome.storage.local.set({ recentAlerts: [] }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.type === "CLEAR_HISTORY") {

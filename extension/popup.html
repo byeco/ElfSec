@@ -4,168 +4,260 @@
   <meta charset="utf-8" />
   <meta name="color-scheme" content="light dark" />
   <title>ElfSec Güvenlik Eklentisi</title>
+  <link rel="stylesheet" href="shared.css" />
   <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f4f7fb;
-      --panel: #ffffff;
-      --panel-2: #f8fafc;
-      --text: #0f172a;
-      --muted: #5b6b82;
-      --border: #dbe3ee;
-      --brand: #059669;
-      --brand-strong: #047857;
-      --brand-soft: #ecfdf5;
-      --ok: #059669;
-      --ok-soft: #ecfdf5;
-      --warn: #b45309;
-      --warn-soft: #fffbeb;
-      --bad: #b91c1c;
-      --bad-soft: #fef2f2;
-      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-      --focus: 0 0 0 3px rgba(5, 150, 105, 0.28);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0b1220;
-        --panel: #111c31;
-        --panel-2: #0f172a;
-        --text: #e8eefc;
-        --muted: #9fb0c7;
-        --border: #24344f;
-        --brand: #34d399;
-        --brand-strong: #10b981;
-        --brand-soft: rgba(16, 185, 129, 0.14);
-        --ok: #34d399;
-        --ok-soft: rgba(16, 185, 129, 0.14);
-        --warn: #fbbf24;
-        --warn-soft: rgba(245, 158, 11, 0.16);
-        --bad: #fca5a5;
-        --bad-soft: rgba(239, 68, 68, 0.16);
-        --shadow: 0 12px 36px rgba(2, 6, 23, 0.5);
-        --focus: 0 0 0 3px rgba(52, 211, 153, 0.32);
-      }
-    }
-
-    * { box-sizing: border-box; }
-
     body {
-      width: 380px;
-      max-height: 580px;
-      margin: 0;
-      padding: 14px;
+      width: 396px;
+      max-height: 590px;
+      padding: 12px 14px 14px;
       overflow-y: auto;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
       font-size: 13px;
       line-height: 1.45;
     }
 
-    h1, h2, p { margin: 0; }
-    strong { font-weight: 700; }
-
-    /* ---------- Başlık ---------- */
-    .header {
+    /* Üst Başlık */
+    .topbar {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
-    .logo {
-      width: 40px;
-      height: 40px;
+    .logo-wrap {
+      width: 38px;
+      height: 38px;
       border-radius: 11px;
-      padding: 5px;
-      background: var(--brand-soft);
+      background: var(--surface);
       border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow-sm);
       flex: 0 0 auto;
     }
 
     .brand { flex: 1; min-width: 0; }
 
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .brand h1 {
-      font-size: 16px;
-      letter-spacing: 0.2px;
-      line-height: 1.2;
+      font-size: 15.5px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .ver-tag {
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
     }
 
     .brand .tagline {
       color: var(--muted);
       font-size: 11px;
-      margin-top: 2px;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .pill {
-      display: inline-flex;
+    .topbar-actions {
+      display: flex;
       align-items: center;
       gap: 6px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--muted);
-    }
-
-    .pill::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: currentColor;
       flex: 0 0 auto;
     }
 
-    .pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
-    .pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+    .pill-btn {
+      cursor: pointer;
+      font: inherit;
+    }
 
-    /* ---------- İstatistikler ---------- */
-    .stats {
+    .icon-square-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .icon-square-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .icon-square-btn:focus-visible { outline: none; box-shadow: var(--focus); }
+
+    /* Sekmeler */
+    .tabs {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .stat {
-      background: var(--panel);
+      gap: 4px;
+      padding: 4px;
+      border-radius: 11px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 9px 6px 8px;
-      text-align: center;
-      box-shadow: var(--shadow);
+      margin-bottom: 10px;
     }
 
-    .stat .stat-icon { font-size: 15px; line-height: 1; }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 32px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
 
-    .stat strong {
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-btn[aria-selected="true"] {
+      background: var(--brand-soft);
+      color: var(--brand);
+    }
+
+    .tab-btn:focus-visible { outline: none; box-shadow: var(--focus); }
+
+    .tab-badge {
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+
+    .tab-btn[aria-selected="true"] .tab-badge {
+      background: var(--brand-strong);
+      border-color: transparent;
+      color: #ffffff;
+    }
+
+    .tab-panel[hidden] { display: none; }
+
+    /* Hero Koruma Kartı */
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 13px;
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .hero.is-active {
+      border-color: rgba(16, 185, 129, 0.34);
+      box-shadow: 0 6px 22px var(--brand-glow);
+    }
+
+    .hero-left {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+
+    .hero-shield {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: var(--brand-soft);
+      color: var(--brand);
+      flex: 0 0 auto;
+    }
+
+    .hero.is-paused .hero-shield {
+      background: var(--surface-2);
+      color: var(--muted);
+    }
+
+    .hero-copy strong {
       display: block;
-      font-size: 19px;
-      line-height: 1.25;
-      margin-top: 3px;
+      font-size: 13.5px;
+      font-weight: 800;
+    }
+
+    .hero-copy small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    /* 4'lü Metrikler */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      margin-top: 9px;
+    }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 6px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .metric-val {
+      display: block;
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.2;
       font-variant-numeric: tabular-nums;
     }
 
-    .stat .stat-label {
+    .metric-val.is-threat { color: var(--bad); }
+    .metric-val.is-ok { color: var(--ok); }
+
+    .metric-lbl {
       display: block;
-      font-size: 10.5px;
+      margin-top: 2px;
       color: var(--muted);
-      letter-spacing: 0.02em;
+      font-size: 10px;
+      font-weight: 600;
     }
 
-    /* ---------- Kartlar ---------- */
+    /* Kart */
     .card {
-      background: var(--panel);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 11px;
-      margin-top: 8px;
-      box-shadow: var(--shadow);
+      border-radius: var(--radius-lg);
+      padding: 11px 12px;
+      margin-top: 9px;
+      box-shadow: var(--shadow-sm);
     }
 
     .card-head {
@@ -176,256 +268,402 @@
       margin-bottom: 8px;
     }
 
+    .card-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-2);
+      letter-spacing: 0.01em;
+    }
+
     .hint { color: var(--muted); font-size: 11px; }
 
-    /* ---------- Açma/kapama ---------- */
-    .toggle-row {
+    /* Hızlı Kalkan Izgarası */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .mini-toggle {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      min-height: 48px;
+      gap: 8px;
+      padding: 7px 9px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      font-size: 11.5px;
+      font-weight: 600;
       cursor: pointer;
       user-select: none;
     }
 
-    .toggle-copy { display: flex; flex-direction: column; gap: 2px; }
-    .toggle-copy small { color: var(--muted); font-size: 11px; }
-
-    .switch { position: relative; width: 52px; height: 30px; flex: 0 0 auto; }
-
-    .switch input {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+    .mini-toggle input {
+      accent-color: var(--brand-strong);
+      width: 15px;
+      height: 15px;
       margin: 0;
-      opacity: 0;
       cursor: pointer;
-      z-index: 2;
     }
 
-    .slider {
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: #cbd5e1;
-      border: 1px solid var(--border);
-      transition: background 0.18s ease;
-    }
-
-    .slider::after {
-      content: "";
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
-      transition: transform 0.18s ease;
-    }
-
-    .switch input:checked + .slider { background: var(--brand-strong); }
-    .switch input:checked + .slider::after { transform: translateX(22px); }
-    .switch input:focus-visible + .slider { box-shadow: var(--focus); }
-
-    /* ---------- Form ---------- */
-    textarea {
-      width: 100%;
-      min-height: 58px;
-      resize: vertical;
+    /* Son Tarama Özeti */
+    .last-scan-box {
+      padding: 9px 10px;
       border-radius: 10px;
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--text);
-      padding: 10px 11px;
-      font: inherit;
-      font-size: 12.5px;
     }
 
-    textarea::placeholder { color: var(--muted); opacity: 0.85; }
-    textarea:focus-visible { outline: none; box-shadow: var(--focus); border-color: var(--brand); }
+    .last-scan-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
 
-    button {
-      min-height: 44px;
-      border: 0;
-      border-radius: 11px;
-      padding: 10px 14px;
-      font: inherit;
+    .last-scan-title {
+      font-size: 12px;
       font-weight: 700;
-      cursor: pointer;
-      transition: transform 0.08s ease, filter 0.15s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    button:active { transform: translateY(1px); }
-    button:focus-visible { outline: none; box-shadow: var(--focus); }
-    button:disabled { opacity: 0.6; cursor: progress; }
-
-    button.primary {
-      width: 100%;
-      margin-top: 8px;
-      background: var(--brand-strong);
-      color: #ffffff;
+    .last-scan-meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
     }
 
-    button.primary:hover:not(:disabled) { filter: brightness(1.07); }
-
-    button.secondary {
-      width: 100%;
-      margin-top: 12px;
-      background: var(--panel);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    button.secondary:hover { background: var(--panel-2); }
-
-    /* ---------- Tarama sonucu ---------- */
-    .result {
-      display: none;
-      margin-top: 9px;
-      padding: 9px 11px;
-      border-radius: 10px;
+    /* Hızlı Tarama Sekmesi */
+    .scan-textarea {
+      min-height: 92px;
+      resize: vertical;
+      font-family: var(--mono);
       font-size: 12px;
       line-height: 1.45;
-      border: 1px solid transparent;
-      word-break: break-word;
     }
 
-    .result.show { display: block; }
-    .result.ok { background: var(--ok-soft); color: var(--ok); border-color: rgba(5, 150, 105, 0.25); }
-    .result.warn { background: var(--warn-soft); color: var(--warn); border-color: rgba(180, 83, 9, 0.25); }
-    .result.bad { background: var(--bad-soft); color: var(--bad); border-color: rgba(185, 28, 28, 0.25); }
+    .scan-actions {
+      display: flex;
+      gap: 7px;
+      margin-top: 8px;
+    }
 
-    /* ---------- Alarm listesi ---------- */
-    ul.alerts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+    .scan-actions .elf-btn-primary { flex: 1; }
+
+    .scan-result {
+      display: none;
+      margin-top: 10px;
+      padding: 11px;
+      border-radius: var(--radius-md);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    .scan-result.show { display: block; }
+
+    .scan-res-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .scan-res-score {
+      font-size: 12.5px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .scan-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .scan-tag {
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+
+    .scan-tag.bad {
+      background: var(--bad-soft);
+      border-color: transparent;
+      color: var(--bad);
+    }
+
+    .scan-reasons {
+      margin: 8px 0 0;
+      padding-left: 16px;
+      font-size: 11.5px;
+      color: var(--text-2);
+    }
+
+    .scan-reasons li { margin: 3px 0; word-break: break-word; }
+
+    /* Alarmlar Sekmesi */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+    }
+
+    .filter-btn {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--muted);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .filter-btn.is-active {
+      background: var(--brand-soft);
+      border-color: transparent;
+      color: var(--brand);
+    }
+
+    ul.alerts {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
 
     li.alert {
       display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 4px 9px;
-      align-items: start;
-      background: var(--panel-2);
+      grid-template-columns: 28px 1fr auto;
+      gap: 3px 9px;
+      align-items: center;
+      background: var(--surface-2);
       border: 1px solid var(--border);
       border-left: 4px solid var(--muted);
       border-radius: 10px;
       padding: 8px 10px;
     }
 
-    li.alert[data-level="MEDIUM"] { border-left-color: #f59e0b; }
+    li.alert[data-level="MEDIUM"] { border-left-color: var(--warn-accent); }
     li.alert[data-level="HIGH"],
-    li.alert[data-level="CRITICAL"] { border-left-color: #ef4444; }
+    li.alert[data-level="CRITICAL"] { border-left-color: var(--bad); }
 
-    .alert-level {
+    .alert-src-ico {
       grid-row: span 2;
-      align-self: center;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.03em;
-      padding: 3px 7px;
-      border-radius: 999px;
-      background: var(--panel);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--surface);
       border: 1px solid var(--border);
       color: var(--muted);
-      white-space: nowrap;
+      display: grid;
+      place-items: center;
     }
-
-    li.alert[data-level="MEDIUM"] .alert-level { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
-    li.alert[data-level="HIGH"] .alert-level,
-    li.alert[data-level="CRITICAL"] .alert-level { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
 
     .alert-main {
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .alert-meta { color: var(--muted); font-size: 10.5px; }
+    .alert-meta {
+      grid-column: 2 / 4;
+      color: var(--muted);
+      font-size: 10.5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-    .empty {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px;
-      border: 1px dashed var(--border);
+    .empty-box {
+      padding: 14px 12px;
       border-radius: 10px;
+      border: 1px dashed var(--border);
+      background: var(--surface-2);
       color: var(--muted);
       font-size: 12px;
-      background: var(--panel-2);
+      text-align: center;
     }
 
+    /* Alt Alan */
     .footer {
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 8px;
       margin-top: 10px;
-      padding: 0 2px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
       color: var(--muted);
-      font-size: 10.5px;
+      font-size: 11px;
     }
+
+    .footer-link {
+      background: none;
+      border: 0;
+      padding: 2px 4px;
+      color: var(--brand);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .footer-link:hover { text-decoration: underline; }
+    .footer-link:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
   </style>
 </head>
 <body>
-  <header class="header">
-    <img class="logo" src="icons/icon48.png" alt="" width="40" height="40" />
-    <div class="brand">
-      <h1>ElfSec</h1>
-      <p class="tagline">Yerel e-posta ve indirme koruması</p>
+  <header class="topbar">
+    <div class="logo-wrap">
+      <img src="icons/icon48.png" alt="" width="28" height="28" />
     </div>
-    <span id="nativeStatus" class="pill warn" role="status">Kontrol ediliyor</span>
+    <div class="brand">
+      <div class="brand-row">
+        <h1>ElfSec</h1>
+        <span class="ver-tag">v<span id="appVersion">1.6.0</span></span>
+      </div>
+      <p class="tagline" data-i18n="tagline">Yerel e-posta ve indirme koruması</p>
+    </div>
+    <div class="topbar-actions">
+      <button id="nativeStatus" class="elf-pill warn pill-btn" type="button" data-i18n="statusChecking">Kontrol ediliyor</button>
+      <button id="settingsIconBtn" class="icon-square-btn" type="button" data-i18n-title="openSettings" data-i18n-aria="openSettings" title="Ayarlar">
+        <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+        </svg>
+      </button>
+    </div>
   </header>
 
-  <section class="stats" aria-label="Koruma istatistikleri">
-    <div class="stat"><span class="stat-icon" aria-hidden="true">🛡️</span><strong id="statScanned">0</strong><span class="stat-label">Taranan</span></div>
-    <div class="stat"><span class="stat-icon" aria-hidden="true">⚠️</span><strong id="statThreats">0</strong><span class="stat-label">Tehdit</span></div>
-    <div class="stat"><span class="stat-icon" aria-hidden="true">✅</span><strong id="statVerified">0</strong><span class="stat-label">Doğrulanan</span></div>
-  </section>
+  <nav class="tabs" role="tablist" aria-label="Bölümler">
+    <button class="tab-btn" role="tab" id="tabBtnOverview" aria-selected="true" aria-controls="panelOverview" data-tab="overview" data-i18n="tabOverview">Genel</button>
+    <button class="tab-btn" role="tab" id="tabBtnScan" aria-selected="false" aria-controls="panelScan" data-tab="scan" data-i18n="tabScan">Hızlı Tarama</button>
+    <button class="tab-btn" role="tab" id="tabBtnAlerts" aria-selected="false" aria-controls="panelAlerts" data-tab="alerts">
+      <span data-i18n="tabAlerts">Alarmlar</span>
+      <span id="alertsTabBadge" class="tab-badge">0</span>
+    </button>
+  </nav>
 
-  <section class="card">
-    <label class="toggle-row" for="enabledToggle">
-      <span class="toggle-copy">
-        <strong id="toggleLabel">Koruma açık</strong>
-        <small>Webmail ve indirme kalkanı</small>
-      </span>
-      <span class="switch">
+  <!-- SEKME 1: GENEL -->
+  <section id="panelOverview" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnOverview">
+    <div id="heroCard" class="hero is-active">
+      <div class="hero-left">
+        <div class="hero-shield" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.6 4.8 5.4v5.9c0 4.5 3.1 8.3 7.2 9.4 4.1-1.1 7.2-4.9 7.2-9.4V5.4L12 2.6Z"></path>
+            <path d="m8.8 11.8 2.2 2.2 4.2-4.4"></path>
+          </svg>
+        </div>
+        <div class="hero-copy">
+          <strong id="toggleLabel">Koruma Aktif</strong>
+          <small id="toggleSub">Webmail, link ve indirme kalkanı devrede</small>
+        </div>
+      </div>
+      <label class="elf-switch lg" aria-label="Korumayı aç veya kapat">
         <input type="checkbox" id="enabledToggle" checked />
-        <span class="slider" aria-hidden="true"></span>
-      </span>
-    </label>
-  </section>
-
-  <section class="card">
-    <div class="card-head">
-      <strong>Hızlı tarama</strong>
-      <span class="hint">Link / ClickFix</span>
+        <span class="elf-slider" aria-hidden="true"></span>
+      </label>
     </div>
-    <textarea id="quickInput" rows="2" placeholder="Şüpheli link veya PowerShell/CMD komutu yapıştırın…"></textarea>
-    <button id="scanBtn" class="primary" type="button">Tara</button>
-    <div id="quickResult" class="result" role="status" aria-live="polite"></div>
-  </section>
 
-  <section class="card">
-    <div class="card-head">
-      <strong>Son alarmlar</strong>
-      <span id="alertsCount" class="hint">0 kayıt</span>
+    <div class="metrics" aria-label="Koruma istatistikleri">
+      <div class="metric">
+        <strong id="statEmails" class="metric-val">0</strong>
+        <span class="metric-lbl" data-i18n="statEmails">E-posta</span>
+      </div>
+      <div class="metric">
+        <strong id="statDownloads" class="metric-val">0</strong>
+        <span class="metric-lbl" data-i18n="statDownloads">İndirme</span>
+      </div>
+      <div class="metric">
+        <strong id="statThreats" class="metric-val is-threat">0</strong>
+        <span class="metric-lbl" data-i18n="statThreats">Tehdit</span>
+      </div>
+      <div class="metric">
+        <strong id="statVerified" class="metric-val is-ok">0</strong>
+        <span class="metric-lbl" data-i18n="statVerified">Doğrulanan</span>
+      </div>
     </div>
-    <ul id="alertsList" class="alerts">
-      <li class="empty">Henüz alarm yok. Şüpheli e-posta veya indirme yakalanınca burada görünür.</li>
-    </ul>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title" data-i18n="quickToggles">Hızlı Kalkanlar</span>
+      </div>
+      <div class="quick-grid">
+        <label class="mini-toggle"><span data-i18n="modWebmailShort">Webmail</span><input type="checkbox" id="qWebmail" checked /></label>
+        <label class="mini-toggle"><span data-i18n="modModalShort">Link Modalı</span><input type="checkbox" id="qModal" checked /></label>
+        <label class="mini-toggle"><span data-i18n="modDownloadsShort">İndirme</span><input type="checkbox" id="qDownloads" checked /></label>
+        <label class="mini-toggle"><span data-i18n="modTrackerShort">Takip Pikseli</span><input type="checkbox" id="qTracker" checked /></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title" data-i18n="lastScanTitle">Son Tarama</span>
+        <span id="lastScanTime" class="hint"></span>
+      </div>
+      <div id="lastScanBody" class="empty-box" data-i18n="lastScanEmpty">Henüz tarama kaydı yok.</div>
+    </div>
   </section>
 
-  <button id="optionsBtn" class="secondary" type="button">Ayarlar ve Mağaza Bağlantısı</button>
+  <!-- SEKME 2: HIZLI TARAMA -->
+  <section id="panelScan" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnScan" hidden>
+    <div class="card" style="margin-top:0;">
+      <div class="card-head">
+        <span class="card-title" data-i18n="quickScanTitle">URL / Metin / ClickFix Tarama</span>
+        <span class="hint" data-i18n="quickScanHint">Ctrl + Enter</span>
+      </div>
+      <textarea id="quickInput" class="elf-textarea scan-textarea" data-i18n-placeholder="quickScanPlaceholder" placeholder="Şüpheli link, e-posta metni veya PowerShell/CMD komutu yapıştırın…"></textarea>
+      <div class="scan-actions">
+        <button id="scanBtn" class="elf-btn elf-btn-primary" type="button" data-i18n="scanBtn">Tara</button>
+        <button id="clearInputBtn" class="elf-btn elf-btn-secondary" type="button" data-i18n="clearInputBtn">Temizle</button>
+      </div>
+      <div id="quickResult" class="scan-result" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- SEKME 3: ALARMLAR -->
+  <section id="panelAlerts" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnAlerts" hidden>
+    <div class="card" style="margin-top:0;">
+      <div class="filter-bar">
+        <div class="filter-pills" role="group" aria-label="Risk filtresi">
+          <button type="button" class="filter-btn is-active" data-filter="all" data-i18n="filterAll">Tümü</button>
+          <button type="button" class="filter-btn" data-filter="high" data-i18n="filterHigh">Yüksek+</button>
+          <button type="button" class="filter-btn" data-filter="medium" data-i18n="filterMedium">Orta</button>
+        </div>
+        <span id="alertsCount" class="hint">0 kayıt</span>
+      </div>
+      <ul id="alertsList" class="alerts"></ul>
+    </div>
+  </section>
 
   <footer class="footer">
-    <span>v<span id="appVersion">1.6.0</span> · %100 yerel</span>
-    <span>ElfSec Guard</span>
+    <span><span data-i18n="footerLocal">%100 Yerel</span> · ElfSec Guard</span>
+    <button id="optionsBtn" class="footer-link" type="button" data-i18n="openSettings">Ayarlar ve Mağaza Bağlantısı</button>
   </footer>
 
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

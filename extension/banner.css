@@ -1,11 +1,12 @@
-/* ElfSec webmail arayüzü — banner, hover balonu, engel modalı ve toast.
-   Açık/koyu tema: işletim sistemi tercihine göre otomatik uyum sağlar. */
+/* ElfSec Webmail Arayüzü — Banner, Hover Balonu, Engel Modalı ve Toast
+   Açık/koyu tema: OS tercihine veya kullanıcının seçtiği [data-elfsec-theme] ayarına uyar. */
 
 #elfsec-mail-banner.elfsec-banner,
 #elfsec-link-modal,
+#elfsec-link-tooltip,
 #elfsec-floating-toast.elfsec-toast {
   --e-bg: #ffffff;
-  --e-bg-2: #f8fafc;
+  --e-bg-2: #f6f9fd;
   --e-text: #0f172a;
   --e-muted: #5b6b82;
   --e-border: #dbe3ee;
@@ -13,28 +14,45 @@
   --e-brand: #059669;
   --e-chip-bg: #ecfdf5;
   --e-chip-text: #047857;
-  --e-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+  --e-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  #elfsec-mail-banner.elfsec-banner,
-  #elfsec-link-modal,
-  #elfsec-floating-toast.elfsec-toast {
-    --e-bg: #111c31;
-    --e-bg-2: #0f172a;
-    --e-text: #e8eefc;
-    --e-muted: #9fb0c7;
-    --e-border: #24344f;
+  #elfsec-mail-banner.elfsec-banner:not([data-elfsec-theme="light"]),
+  #elfsec-link-modal:not([data-elfsec-theme="light"]),
+  #elfsec-link-tooltip:not([data-elfsec-theme="light"]),
+  #elfsec-floating-toast.elfsec-toast:not([data-elfsec-theme="light"]) {
+    --e-bg: #111a2e;
+    --e-bg-2: #0d1424;
+    --e-text: #eef3ff;
+    --e-muted: #93a6c2;
+    --e-border: rgba(148, 163, 184, 0.22);
     --e-accent: #34d399;
     --e-brand: #34d399;
     --e-chip-bg: rgba(16, 185, 129, 0.16);
     --e-chip-text: #6ee7b7;
-    --e-shadow: 0 14px 38px rgba(2, 6, 23, 0.55);
+    --e-shadow: 0 14px 36px rgba(2, 6, 23, 0.56);
   }
 }
 
-/* Seviye renkleri (banner / modal kartı / toast) */
+#elfsec-mail-banner.elfsec-banner[data-elfsec-theme="dark"],
+#elfsec-link-modal[data-elfsec-theme="dark"],
+#elfsec-link-tooltip[data-elfsec-theme="dark"],
+#elfsec-floating-toast.elfsec-toast[data-elfsec-theme="dark"] {
+  --e-bg: #111a2e;
+  --e-bg-2: #0d1424;
+  --e-text: #eef3ff;
+  --e-muted: #93a6c2;
+  --e-border: rgba(148, 163, 184, 0.22);
+  --e-accent: #34d399;
+  --e-brand: #34d399;
+  --e-chip-bg: rgba(16, 185, 129, 0.16);
+  --e-chip-text: #6ee7b7;
+  --e-shadow: 0 14px 36px rgba(2, 6, 23, 0.56);
+}
+
+/* Seviye renkleri */
 #elfsec-mail-banner.elfsec-lvl-low,
 #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-low,
 #elfsec-floating-toast.elfsec-lvl-low {
@@ -63,62 +81,74 @@
 #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-critical,
 #elfsec-floating-toast.elfsec-lvl-critical {
   --e-accent: #b91c1c;
-  --e-chip-bg: #fef2f2;
+  --e-chip-bg: #fee2e2;
   --e-chip-text: #7f1d1d;
 }
 
 @media (prefers-color-scheme: dark) {
-  #elfsec-mail-banner.elfsec-lvl-low,
-  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-low,
-  #elfsec-floating-toast.elfsec-lvl-low {
+  #elfsec-mail-banner.elfsec-lvl-low:not([data-elfsec-theme="light"]),
+  #elfsec-link-modal:not([data-elfsec-theme="light"]) .elfsec-modal-card.elfsec-lvl-low,
+  #elfsec-floating-toast.elfsec-lvl-low:not([data-elfsec-theme="light"]) {
     --e-accent: #34d399;
     --e-chip-bg: rgba(16, 185, 129, 0.16);
     --e-chip-text: #6ee7b7;
   }
 
-  #elfsec-mail-banner.elfsec-lvl-medium,
-  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-medium,
-  #elfsec-floating-toast.elfsec-lvl-medium {
+  #elfsec-mail-banner.elfsec-lvl-medium:not([data-elfsec-theme="light"]),
+  #elfsec-link-modal:not([data-elfsec-theme="light"]) .elfsec-modal-card.elfsec-lvl-medium,
+  #elfsec-floating-toast.elfsec-lvl-medium:not([data-elfsec-theme="light"]) {
     --e-accent: #fbbf24;
     --e-chip-bg: rgba(245, 158, 11, 0.18);
     --e-chip-text: #fcd34d;
   }
 
-  #elfsec-mail-banner.elfsec-lvl-high,
-  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-high,
-  #elfsec-floating-toast.elfsec-lvl-high {
+  #elfsec-mail-banner.elfsec-lvl-high:not([data-elfsec-theme="light"]),
+  #elfsec-link-modal:not([data-elfsec-theme="light"]) .elfsec-modal-card.elfsec-lvl-high,
+  #elfsec-floating-toast.elfsec-lvl-high:not([data-elfsec-theme="light"]) {
     --e-accent: #f87171;
     --e-chip-bg: rgba(239, 68, 68, 0.18);
     --e-chip-text: #fca5a5;
   }
 
-  #elfsec-mail-banner.elfsec-lvl-critical,
-  #elfsec-link-modal .elfsec-modal-card.elfsec-lvl-critical,
-  #elfsec-floating-toast.elfsec-lvl-critical {
+  #elfsec-mail-banner.elfsec-lvl-critical:not([data-elfsec-theme="light"]),
+  #elfsec-link-modal:not([data-elfsec-theme="light"]) .elfsec-modal-card.elfsec-lvl-critical,
+  #elfsec-floating-toast.elfsec-lvl-critical:not([data-elfsec-theme="light"]) {
     --e-accent: #ef4444;
-    --e-chip-bg: rgba(239, 68, 68, 0.24);
+    --e-chip-bg: rgba(239, 68, 68, 0.25);
     --e-chip-text: #fecaca;
   }
 }
 
-/* ---------------- E-posta üstü banner ---------------- */
+#elfsec-mail-banner.elfsec-lvl-low[data-elfsec-theme="dark"],
+#elfsec-link-modal[data-elfsec-theme="dark"] .elfsec-modal-card.elfsec-lvl-low,
+#elfsec-floating-toast.elfsec-lvl-low[data-elfsec-theme="dark"] {
+  --e-accent: #34d399;
+  --e-chip-bg: rgba(16, 185, 129, 0.16);
+  --e-chip-text: #6ee7b7;
+}
 
-#elfsec-mail-banner.elfsec-banner {
-  position: relative;
-  display: block;
-  margin: 10px 0 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--e-border);
-  border-left: 6px solid var(--e-accent);
-  border-radius: 14px;
-  background: var(--e-bg);
-  color: var(--e-text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  line-height: 1.5;
-  text-align: left;
-  box-shadow: var(--e-shadow);
-  animation: elfsec-pop 0.16s ease-out;
+#elfsec-mail-banner.elfsec-lvl-medium[data-elfsec-theme="dark"],
+#elfsec-link-modal[data-elfsec-theme="dark"] .elfsec-modal-card.elfsec-lvl-medium,
+#elfsec-floating-toast.elfsec-lvl-medium[data-elfsec-theme="dark"] {
+  --e-accent: #fbbf24;
+  --e-chip-bg: rgba(245, 158, 11, 0.18);
+  --e-chip-text: #fcd34d;
+}
+
+#elfsec-mail-banner.elfsec-lvl-high[data-elfsec-theme="dark"],
+#elfsec-link-modal[data-elfsec-theme="dark"] .elfsec-modal-card.elfsec-lvl-high,
+#elfsec-floating-toast.elfsec-lvl-high[data-elfsec-theme="dark"] {
+  --e-accent: #f87171;
+  --e-chip-bg: rgba(239, 68, 68, 0.18);
+  --e-chip-text: #fca5a5;
+}
+
+#elfsec-mail-banner.elfsec-lvl-critical[data-elfsec-theme="dark"],
+#elfsec-link-modal[data-elfsec-theme="dark"] .elfsec-modal-card.elfsec-lvl-critical,
+#elfsec-floating-toast.elfsec-lvl-critical[data-elfsec-theme="dark"] {
+  --e-accent: #ef4444;
+  --e-chip-bg: rgba(239, 68, 68, 0.25);
+  --e-chip-text: #fecaca;
 }
 
 #elfsec-mail-banner.elfsec-banner *,
@@ -126,6 +156,30 @@
 #elfsec-link-tooltip *,
 #elfsec-floating-toast * {
   box-sizing: border-box;
+}
+
+/* ---------------- E-posta Üstü Banner ---------------- */
+
+#elfsec-mail-banner.elfsec-banner {
+  position: relative;
+  display: block;
+  margin: 10px 0 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--e-border);
+  border-left: 5px solid var(--e-accent);
+  border-radius: 13px;
+  background: var(--e-bg);
+  color: var(--e-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: var(--e-shadow);
+  animation: elfsec-pop 0.16s ease-out;
+}
+
+#elfsec-mail-banner.elfsec-compact {
+  padding: 9px 13px;
 }
 
 #elfsec-mail-banner .elfsec-banner-head {
@@ -140,51 +194,65 @@
   align-items: center;
   gap: 6px;
   font-weight: 800;
-  letter-spacing: 0.2px;
+  font-size: 13px;
+  letter-spacing: 0.1px;
   color: var(--e-brand);
 }
 
 #elfsec-mail-banner .elfsec-brand svg { width: 16px; height: 16px; }
 
 #elfsec-mail-banner .elfsec-badge {
-  padding: 4px 9px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: var(--e-chip-bg);
   color: var(--e-chip-text);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 #elfsec-mail-banner .elfsec-verify-pill,
 #elfsec-mail-banner .elfsec-tracker-pill {
-  padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
 
-#elfsec-mail-banner .elfsec-verify-ok {
-  background: #ecfdf5;
-  color: #047857;
+#elfsec-mail-banner .elfsec-verify-pill svg,
+#elfsec-mail-banner .elfsec-tracker-pill svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
 }
 
-#elfsec-mail-banner .elfsec-verify-bad {
-  background: #fef2f2;
-  color: #b91c1c;
-}
+#elfsec-mail-banner .elfsec-verify-ok { background: #ecfdf5; color: #047857; }
+#elfsec-mail-banner .elfsec-verify-bad { background: #fef2f2; color: #b91c1c; }
 
 @media (prefers-color-scheme: dark) {
-  #elfsec-mail-banner .elfsec-verify-ok {
+  #elfsec-mail-banner:not([data-elfsec-theme="light"]) .elfsec-verify-ok {
     background: rgba(16, 185, 129, 0.16);
     color: #6ee7b7;
   }
 
-  #elfsec-mail-banner .elfsec-verify-bad {
+  #elfsec-mail-banner:not([data-elfsec-theme="light"]) .elfsec-verify-bad {
     background: rgba(239, 68, 68, 0.18);
     color: #fca5a5;
   }
+}
+
+#elfsec-mail-banner[data-elfsec-theme="dark"] .elfsec-verify-ok {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+}
+
+#elfsec-mail-banner[data-elfsec-theme="dark"] .elfsec-verify-bad {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
 }
 
 #elfsec-mail-banner .elfsec-tracker-pill {
@@ -200,28 +268,74 @@
   font-size: 11.5px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+#elfsec-mail-banner .elfsec-banner-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+#elfsec-mail-banner .elfsec-icon-btn,
 #elfsec-mail-banner .elfsec-rescan-btn {
-  min-height: 36px;
-  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 10px;
   border: 1px solid var(--e-border);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--e-bg-2);
   color: var(--e-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
 }
 
-#elfsec-mail-banner .elfsec-rescan-btn:hover { filter: brightness(0.97); }
-#elfsec-mail-banner .elfsec-rescan-btn:focus-visible { outline: 2px solid var(--e-accent); outline-offset: 2px; }
+#elfsec-mail-banner .elfsec-icon-btn svg,
+#elfsec-mail-banner .elfsec-rescan-btn svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.15s ease;
+}
+
+#elfsec-mail-banner.elfsec-expanded .elfsec-icon-btn svg {
+  transform: rotate(180deg);
+}
+
+#elfsec-mail-banner .elfsec-icon-btn:hover,
+#elfsec-mail-banner .elfsec-rescan-btn:hover {
+  filter: brightness(0.96);
+}
+
+#elfsec-mail-banner .elfsec-icon-btn:focus-visible,
+#elfsec-mail-banner .elfsec-rescan-btn:focus-visible,
+#elfsec-mail-banner .elfsec-trust-btn:focus-visible {
+  outline: 2px solid var(--e-accent);
+  outline-offset: 2px;
+}
+
+#elfsec-mail-banner .elfsec-banner-meter {
+  margin-top: 9px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--e-bg-2);
+  overflow: hidden;
+}
+
+#elfsec-mail-banner .elfsec-banner-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--e-accent);
+}
 
 #elfsec-mail-banner .elfsec-reasons {
-  margin: 9px 0 0;
-  padding: 0 0 0 4px;
+  margin: 8px 0 0;
+  padding: 0 0 0 2px;
   list-style: none;
   font-size: 12.5px;
 }
@@ -229,25 +343,69 @@
 #elfsec-mail-banner .elfsec-reasons li {
   position: relative;
   margin: 3px 0;
-  padding-left: 16px;
+  padding-left: 14px;
 }
 
 #elfsec-mail-banner .elfsec-reasons li::before {
-  content: "•";
+  content: "";
   position: absolute;
   left: 2px;
-  color: var(--e-accent);
-  font-weight: 800;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--e-accent);
 }
 
 #elfsec-mail-banner .elfsec-rec {
-  margin-top: 9px;
+  margin-top: 8px;
   padding: 8px 10px;
-  border: 1px dashed var(--e-border);
-  border-radius: 10px;
+  border: 1px solid var(--e-border);
+  border-radius: 9px;
   background: var(--e-bg-2);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
+}
+
+#elfsec-mail-banner .elfsec-details {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--e-border);
+  font-size: 12px;
+  color: var(--e-muted);
+}
+
+#elfsec-mail-banner .elfsec-details-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+#elfsec-mail-banner .elfsec-details-note {
+  margin-top: 6px;
+  color: var(--e-text);
+  font-size: 12px;
+}
+
+#elfsec-mail-banner .elfsec-details-actions {
+  margin-top: 8px;
+}
+
+#elfsec-mail-banner .elfsec-trust-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--e-border);
+  background: var(--e-bg-2);
+  color: var(--e-text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#elfsec-mail-banner .elfsec-trust-btn:hover {
+  border-color: var(--e-accent);
+  color: var(--e-brand);
 }
 
 /* Riskli bağlantı vurgusu */
@@ -255,25 +413,27 @@ a.elfsec-sus-link {
   outline: 2px dashed #ef4444 !important;
   outline-offset: 2px;
   border-radius: 3px;
-  background-color: rgba(239, 68, 68, 0.12) !important;
+  background-color: rgba(239, 68, 68, 0.10) !important;
 }
 
-/* ---------------- Hover hedef balonu ---------------- */
+/* ---------------- Hover Hedef Balonu ---------------- */
 
 #elfsec-link-tooltip {
   position: fixed;
   z-index: 2147483647;
-  max-width: 340px;
-  padding: 9px 11px;
-  border: 1px solid transparent;
-  border-radius: 10px;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid var(--e-border);
+  border-radius: 11px;
+  background: var(--e-bg);
+  color: var(--e-text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 12px;
   line-height: 1.45;
   text-align: left;
   pointer-events: none;
-  word-break: break-all;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+  word-break: break-word;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28);
   animation: elfsec-pop 0.12s ease-out;
 }
 
@@ -285,35 +445,49 @@ a.elfsec-sus-link {
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  color: var(--e-brand);
 }
 
 #elfsec-link-tooltip .elfsec-tip-head svg { width: 13px; height: 13px; flex: 0 0 auto; }
 
+#elfsec-link-tooltip .elfsec-tip-proto {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  background: var(--e-chip-bg);
+  color: var(--e-chip-text);
+}
+
+#elfsec-link-tooltip .elfsec-tip-proto.is-http {
+  background: rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
 #elfsec-link-tooltip .elfsec-tip-host {
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: 13.5px;
   font-weight: 800;
   word-break: break-all;
 }
 
+#elfsec-link-tooltip .elfsec-tip-mismatch,
+#elfsec-link-tooltip .elfsec-tip-reason {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 #elfsec-link-tooltip .elfsec-tip-url {
   display: block;
-  margin-top: 2px;
+  margin-top: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 10.5px;
-  opacity: 0.8;
+  color: var(--e-muted);
 }
-
-#elfsec-link-tooltip.elfsec-tip-ok {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #dbe3ee;
-}
-
-#elfsec-link-tooltip.elfsec-tip-ok .elfsec-tip-head { color: #047857; }
 
 #elfsec-link-tooltip.elfsec-tip-bad {
   background: #fff1f2;
@@ -324,24 +498,24 @@ a.elfsec-sus-link {
 #elfsec-link-tooltip.elfsec-tip-bad .elfsec-tip-head { color: #b91c1c; }
 
 @media (prefers-color-scheme: dark) {
-  #elfsec-link-tooltip.elfsec-tip-ok {
-    background: #111c31;
-    color: #e8eefc;
-    border-color: #24344f;
-  }
-
-  #elfsec-link-tooltip.elfsec-tip-ok .elfsec-tip-head { color: #6ee7b7; }
-
-  #elfsec-link-tooltip.elfsec-tip-bad {
-    background: #3f1116;
+  #elfsec-link-tooltip.elfsec-tip-bad:not([data-elfsec-theme="light"]) {
+    background: #2b1016;
     color: #fecaca;
-    border-color: #7f1d1d;
+    border-color: rgba(248, 113, 113, 0.4);
   }
 
-  #elfsec-link-tooltip.elfsec-tip-bad .elfsec-tip-head { color: #fca5a5; }
+  #elfsec-link-tooltip.elfsec-tip-bad:not([data-elfsec-theme="light"]) .elfsec-tip-head { color: #fca5a5; }
 }
 
-/* ---------------- Şüpheli bağlantı modalı ---------------- */
+#elfsec-link-tooltip.elfsec-tip-bad[data-elfsec-theme="dark"] {
+  background: #2b1016;
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+#elfsec-link-tooltip.elfsec-tip-bad[data-elfsec-theme="dark"] .elfsec-tip-head { color: #fca5a5; }
+
+/* ---------------- Şüpheli Bağlantı Modalı ---------------- */
 
 #elfsec-link-modal {
   position: fixed;
@@ -351,8 +525,8 @@ a.elfsec-sus-link {
   align-items: center;
   justify-content: center;
   padding: 18px;
-  background: rgba(15, 23, 42, 0.58);
-  backdrop-filter: blur(4px);
+  background: rgba(9, 14, 26, 0.68);
+  backdrop-filter: blur(5px);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   text-align: left;
 }
@@ -377,15 +551,15 @@ a.elfsec-sus-link {
 #elfsec-link-modal .elfsec-modal-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 #elfsec-link-modal .elfsec-modal-icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   border-radius: 12px;
   background: var(--e-chip-bg);
@@ -394,15 +568,36 @@ a.elfsec-sus-link {
 
 #elfsec-link-modal .elfsec-modal-icon svg { width: 20px; height: 20px; }
 
+#elfsec-link-modal .elfsec-modal-head-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 #elfsec-link-modal .elfsec-modal-chip {
-  padding: 4px 10px;
+  align-self: flex-start;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--e-chip-bg);
   color: var(--e-chip-text);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+}
+
+#elfsec-link-modal .elfsec-modal-meter {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--e-bg-2);
+  overflow: hidden;
+}
+
+#elfsec-link-modal .elfsec-modal-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--e-accent);
 }
 
 #elfsec-link-modal .elfsec-modal-title {
@@ -418,13 +613,45 @@ a.elfsec-sus-link {
   font-size: 13px;
 }
 
+#elfsec-link-modal .elfsec-modal-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#elfsec-link-modal .elfsec-cmp-col {
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--e-border);
+  background: var(--e-bg-2);
+}
+
+#elfsec-link-modal .elfsec-cmp-bad {
+  border-color: var(--e-accent);
+}
+
+#elfsec-link-modal .elfsec-cmp-lbl {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--e-muted);
+}
+
+#elfsec-link-modal .elfsec-cmp-val {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
 #elfsec-link-modal .elfsec-modal-url {
   margin-top: 12px;
   padding: 10px 12px;
   border: 1px solid var(--e-border);
   border-radius: 10px;
   background: var(--e-bg-2);
-  overflow: hidden;
 }
 
 #elfsec-link-modal .elfsec-modal-host {
@@ -447,30 +674,24 @@ a.elfsec-sus-link {
   margin: 12px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 #elfsec-link-modal .elfsec-modal-reasons li {
   position: relative;
   margin: 4px 0;
-  padding-left: 18px;
+  padding-left: 14px;
 }
 
 #elfsec-link-modal .elfsec-modal-reasons li::before {
-  content: "!";
+  content: "";
   position: absolute;
   left: 2px;
-  top: 0;
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  margin-top: 3px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--e-chip-bg);
-  color: var(--e-chip-text);
-  font-size: 9px;
-  font-weight: 900;
+  background: var(--e-accent);
 }
 
 #elfsec-link-modal .elfsec-modal-actions {
@@ -482,10 +703,10 @@ a.elfsec-sus-link {
 
 #elfsec-link-modal .elfsec-btn-safe {
   flex: 1 1 200px;
-  min-height: 46px;
-  padding: 12px 16px;
+  min-height: 44px;
+  padding: 11px 16px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 10px;
   background: #047857;
   color: #ffffff;
   font: inherit;
@@ -498,10 +719,10 @@ a.elfsec-sus-link {
 
 #elfsec-link-modal .elfsec-btn-risk {
   flex: 0 1 auto;
-  min-height: 46px;
-  padding: 12px 14px;
+  min-height: 44px;
+  padding: 11px 14px;
   border: 1px solid var(--e-border);
-  border-radius: 11px;
+  border-radius: 10px;
   background: transparent;
   color: var(--e-muted);
   font: inherit;
@@ -528,7 +749,7 @@ a.elfsec-sus-link {
   text-align: right;
 }
 
-/* ---------------- Sağ-tık tarama toast'u ---------------- */
+/* ---------------- Sağ-Tık Tarama Toast'u ---------------- */
 
 #elfsec-floating-toast.elfsec-toast {
   position: fixed;
@@ -538,13 +759,13 @@ a.elfsec-sus-link {
   width: min(360px, calc(100vw - 36px));
   padding: 14px 16px;
   border: 1px solid var(--e-border);
-  border-left: 6px solid var(--e-accent);
-  border-radius: 14px;
+  border-left: 5px solid var(--e-accent);
+  border-radius: 13px;
   background: var(--e-bg);
   color: var(--e-text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
   text-align: left;
   box-shadow: var(--e-shadow);
   animation: elfsec-slide-in 0.18s ease-out;
@@ -558,12 +779,13 @@ a.elfsec-sus-link {
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 #elfsec-floating-toast .elfsec-toast-head svg { width: 15px; height: 15px; }
 
 #elfsec-floating-toast .elfsec-toast-title {
-  margin-top: 3px;
+  margin-top: 4px;
   font-weight: 800;
   font-size: 14px;
 }
@@ -576,11 +798,11 @@ a.elfsec-sus-link {
 }
 
 #elfsec-floating-toast .elfsec-toast-close {
-  min-height: 36px;
+  min-height: 32px;
   margin-top: 10px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border: 1px solid var(--e-border);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--e-bg-2);
   color: var(--e-text);
   font: inherit;
@@ -589,9 +811,7 @@ a.elfsec-sus-link {
   cursor: pointer;
 }
 
-#elfsec-floating-toast .elfsec-toast-close:hover { filter: brightness(0.97); }
-
-/* ---------------- Animasyonlar ---------------- */
+#elfsec-floating-toast .elfsec-toast-close:hover { filter: brightness(0.96); }
 
 @keyframes elfsec-pop {
   from { opacity: 0; transform: translateY(6px) scale(0.985); }
