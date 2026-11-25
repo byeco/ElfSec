@@ -1,0 +1,4 @@
+[run]
+source = app,tests
+omit =
+    */__pycache__/*

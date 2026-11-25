@@ -499,6 +499,20 @@ class DesktopPanelServer:
                     self._send_json(200, {"ok": True, **st})
                     return
 
+                if parsed.path == "/api/window/drag-start":
+                    wc = panel.window_controller
+                    st = wc.begin_drag() if wc is not None else {"started": False, "native": False, "maximized": False, "pinned": False}
+                    self._send_json(200, {"ok": True, **st})
+                    return
+
+                if parsed.path == "/api/window/move":
+                    wc = panel.window_controller
+                    dx = int(body.get("dx", 0) or 0)
+                    dy = int(body.get("dy", 0) or 0)
+                    st = wc.move_by(dx, dy) if wc is not None else {"native": False, "maximized": False, "pinned": False}
+                    self._send_json(200, {"ok": True, **st})
+                    return
+
                 if parsed.path == "/api/window/close":
                     wc = panel.window_controller
                     self._send_json(200, {"ok": True, "closed": True})
@@ -803,8 +817,19 @@ _PANEL_HTML = r"""<!DOCTYPE html>
       align-items: center;
       gap: 9px;
       min-width: 0;
-      cursor: default;
+      cursor: grab;
     }
+    [data-win-drag="1"] { cursor: grab; }
+    [data-win-drag="1"]:active { cursor: grabbing; }
+    .tb-grip {
+      color: var(--muted);
+      opacity: 0.45;
+      display: inline-flex;
+      align-items: center;
+      margin-right: 1px;
+      transition: opacity 0.14s ease;
+    }
+    .titlebar-drag:hover .tb-grip { opacity: 0.9; }
     .tb-logo {
       width: 22px;
       height: 22px;
@@ -1310,7 +1335,10 @@ _PANEL_HTML = r"""<!DOCTYPE html>
   <div class="app-frame" id="appFrame">
     <!-- ÖZEL ÇERÇEVESİZ BAŞLIK ÇUBUĞU -->
     <header class="titlebar">
-      <div class="titlebar-drag pywebview-drag-region" id="titlebarDrag">
+      <div class="titlebar-drag" data-win-drag="1" id="titlebarDrag" title="Taşımak için sürükleyin · Çift tıklayınca büyür">
+        <span class="tb-grip" aria-hidden="true">
+          <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor"><circle cx="2.5" cy="2.5" r="1.2"/><circle cx="7.5" cy="2.5" r="1.2"/><circle cx="2.5" cy="7" r="1.2"/><circle cx="7.5" cy="7" r="1.2"/><circle cx="2.5" cy="11.5" r="1.2"/><circle cx="7.5" cy="11.5" r="1.2"/></svg>
+        </span>
         <div class="tb-logo"><img src="__ELFSEC_LOGO__" alt="ElfSec" width="16" height="16" /></div>
         <span class="tb-title">ElfSec</span>
         <span class="tb-sub">Güvenlik Merkezi</span>
@@ -1343,7 +1371,7 @@ _PANEL_HTML = r"""<!DOCTYPE html>
     <!-- ANA GÖVDE -->
     <div class="app-body">
       <aside class="sidebar">
-        <div class="brand-card">
+        <div class="brand-card" data-win-drag="1" title="Pencereyi taşımak için sürükleyin">
           <div class="brand-logo"><img src="__ELFSEC_LOGO__" alt="ElfSec" width="28" height="28" /></div>
           <div>
             <div class="brand-title">ElfSec</div>
@@ -1834,6 +1862,64 @@ _PANEL_HTML = r"""<!DOCTYPE html>
       const r = await api("/api/window/toggle-maximize", "POST", {});
       if (r.ok) applyWindowState(r);
     });
+
+    (function setupWindowDrag() {
+      let dragging = false;
+      let fallbackMoving = false;
+      let startX = 0;
+      let startY = 0;
+      let lastX = 0;
+      let lastY = 0;
+      let moveInFlight = false;
+
+      document.querySelectorAll('[data-win-drag="1"]').forEach(el => {
+        el.addEventListener("mousedown", e => {
+          if (e.button !== 0 || e.detail > 1) return;
+          if (e.target.closest("button, a, input, textarea, select")) return;
+          dragging = true;
+          fallbackMoving = false;
+          startX = e.screenX;
+          startY = e.screenY;
+          lastX = e.screenX;
+          lastY = e.screenY;
+        });
+      });
+
+      window.addEventListener("mousemove", async e => {
+        if (!dragging) return;
+        if (fallbackMoving) {
+          const dx = e.screenX - lastX;
+          const dy = e.screenY - lastY;
+          if ((dx || dy) && !moveInFlight) {
+            lastX = e.screenX;
+            lastY = e.screenY;
+            moveInFlight = true;
+            try { await api("/api/window/move", "POST", { dx, dy }); }
+            finally { moveInFlight = false; }
+          }
+          return;
+        }
+        if (Math.abs(e.screenX - startX) < 3 && Math.abs(e.screenY - startY) < 3) return;
+        dragging = false;
+        try {
+          const r = await api("/api/window/drag-start", "POST", {});
+          if (r && r.ok) {
+            applyWindowState(r);
+            if (!r.started && r.native) {
+              dragging = true;
+              fallbackMoving = true;
+              lastX = e.screenX;
+              lastY = e.screenY;
+            }
+          }
+        } catch (err) {}
+      });
+
+      window.addEventListener("mouseup", () => {
+        dragging = false;
+        fallbackMoving = false;
+      });
+    })();
     document.getElementById("btnWinPin").addEventListener("click", async () => {
       const r = await api("/api/window/pin", "POST", {});
       if (r.ok) {

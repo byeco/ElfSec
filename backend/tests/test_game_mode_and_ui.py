@@ -162,7 +162,8 @@ def test_desktop_panel_server_security_and_endpoints(monkeypatch, tmp_path):
         assert "byeco" in body_home
         assert "data:image/png;base64," in body_home
         assert "titlebar" in body_home
-        assert "pywebview-drag-region" in body_home
+        assert "titlebarDrag" in body_home
+        assert "data-win-drag" in body_home
         assert "btnWinMin" in body_home
         assert "btnWinMax" in body_home
         assert "btnWinClose" in body_home
@@ -200,6 +201,13 @@ def test_desktop_panel_server_security_and_endpoints(monkeypatch, tmp_path):
                 self.pinned = not self.pinned
                 return self.get_state()
 
+            def begin_drag(self):
+                return {"started": True, **self.get_state()}
+
+            def move_by(self, dx, dy):
+                self.last_move = (dx, dy)
+                return self.get_state()
+
             def close(self):
                 self.closed = True
                 return {"closed": True}
@@ -209,6 +217,9 @@ def test_desktop_panel_server_security_and_endpoints(monkeypatch, tmp_path):
         assert json.loads(_http_call(f"{base}/api/window/state", headers=hdr)[2])["native"] is True
         assert json.loads(_http_call(f"{base}/api/window/toggle-maximize", method="POST", headers=hdr, body={})[2])["maximized"] is True
         assert json.loads(_http_call(f"{base}/api/window/pin", method="POST", headers=hdr, body={})[2])["pinned"] is True
+        assert json.loads(_http_call(f"{base}/api/window/drag-start", method="POST", headers=hdr, body={})[2])["started"] is True
+        assert json.loads(_http_call(f"{base}/api/window/move", method="POST", headers=hdr, body={"dx": 25, "dy": -10})[2])["native"] is True
+        assert fake_ctrl.last_move == (25, -10)
         assert json.loads(_http_call(f"{base}/api/window/minimize", method="POST", headers=hdr, body={})[2])["native"] is True
         assert fake_ctrl.minimized is True
         st_wcls, _, raw_wcls = _http_call(f"{base}/api/window/close", method="POST", headers=hdr, body={})
@@ -428,6 +439,48 @@ def test_native_window_controller_work_area_preserves_taskbar(monkeypatch):
     assert calls[3] == ("corner", True)
 
 
+def test_native_window_controller_drag_and_move_by(monkeypatch):
+    from app import window_host
+
+    class _FakeNative:
+        Handle = 654321
+        WindowState = "Normal"
+
+    class _MockWin:
+        native = _FakeNative()
+        on_top = False
+
+    events = []
+    monkeypatch.setattr(window_host.os, "name", "nt")
+    monkeypatch.setattr(window_host, "_get_window_rect", lambda hwnd: (200, 150, 860, 580))
+    monkeypatch.setattr(window_host, "_get_monitor_work_area", lambda hwnd: (0, 0, 1920, 1032))
+    monkeypatch.setattr(window_host, "_set_window_rect", lambda hwnd, rect: events.append(("rect", hwnd, rect)) or True)
+    monkeypatch.setattr(window_host, "_set_dwm_corner_round", lambda hwnd, rnd: events.append(("corner", rnd)))
+    monkeypatch.setattr(window_host, "_get_cursor_pos", lambda: (700, 12))
+    monkeypatch.setattr(window_host, "_start_win32_drag", lambda hwnd, nf=None: events.append(("drag", hwnd)) or True)
+    monkeypatch.setattr(window_host, "_move_window_to", lambda hwnd, x, y: events.append(("move", hwnd, x, y)) or True)
+
+    ctrl = window_host.NativeWindowController(_MockWin())
+    # Normal modda sürükleme doğrudan Win32 drag başlatır
+    res1 = ctrl.begin_drag()
+    assert res1["started"] is True and res1["maximized"] is False
+    assert ("drag", 654321) in events
+
+    # Büyütülmüşken sürüklenince önce eski boyuta döner sonra sürükler
+    events.clear()
+    ctrl.toggle_maximize()
+    assert ctrl.is_maximized() is True
+    res2 = ctrl.begin_drag()
+    assert res2["started"] is True and res2["maximized"] is False
+    assert any(e[0] == "rect" and e[2] == (270, 0, 860, 580) for e in events)
+    assert ("drag", 654321) in events
+
+    # Yedek move_by
+    events.clear()
+    ctrl.move_by(40, -20)
+    assert ("move", 654321, 240, 130) in events
+
+
 def test_kvkk_privacy_clipboard_and_kontrol_no_leak(monkeypatch, tmp_path):
     from app import settings_store
     from app.kontrol import run_kontrol
@@ -507,4 +560,124 @@ def test_kvkk_privacy_clipboard_and_kontrol_no_leak(monkeypatch, tmp_path):
             assert clear_alert_logs([pd_log]) >= 0
     finally:
         settings_store.set_explicit(None)
+
+
+def test_desktop_ui_error_paths_kontrol_and_quarantine_restore(monkeypatch, tmp_path):
+    from app import settings_store
+    from app.privacy import load_privacy_settings, sanitize_alert_for_storage, save_privacy_settings
+
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "pd"))
+    settings_store.set_explicit(None)
+
+    # Privacy edge-case'leri: bozuk JSON, retention sınırları, mask=False
+    pfile = tmp_path / "cfg" / "ElfSec" / "privacy_settings.json"
+    pfile.parent.mkdir(parents=True, exist_ok=True)
+    pfile.write_text("{bozuk", encoding="utf-8")
+    assert load_privacy_settings(pfile)["kvkk_mask_logs"] is True
+    clamped = save_privacy_settings({"log_retention_days": 999}, path=pfile)
+    assert clamped["log_retention_days"] == 90
+    clamped_low = save_privacy_settings({"log_retention_days": -5}, path=pfile)
+    assert clamped_low["log_retention_days"] == 1
+    raw_clip = sanitize_alert_for_storage({"source": "clipboard", "preview": "gizli"}, mask=False)
+    assert raw_clip["preview"] == "[KVKK: Ham pano içeriği saklanmadı]"
+
+    ctrl = GameModeController(
+        config_path=tmp_path / "cfg" / "gm.json",
+        shared_paths=[tmp_path / "pd" / "gm.json"],
+        detector=lambda _c: {"detected": False, "process": "", "reason": "idle"},
+    )
+    srv = DesktopPanelServer(port=0, controller=ctrl, token="edge-tok")
+    srv.start()
+    base = f"http://127.0.0.1:{srv.port}"
+    hdr = {"X-ElfSec-Token": "edge-tok"}
+    try:
+        # 400 / 404 hata yolları
+        assert _http_call(f"{base}/api/bilinmeyen", headers=hdr)[0] == 404
+        assert _http_call(f"{base}/api/bilinmeyen", method="POST", headers=hdr, body={})[0] == 404
+        assert _http_call(f"{base}/api/scan/text", method="POST", headers=hdr, body={"text": "   "})[0] == 400
+        assert _http_call(f"{base}/api/scan/path", method="POST", headers=hdr, body={"path": ""})[0] == 400
+        assert _http_call(f"{base}/api/scan/path", method="POST", headers=hdr, body={"path": str(tmp_path / "yok.txt")})[0] == 404
+        assert _http_call(f"{base}/api/game-mode", method="POST", headers=hdr, body={"action": "bad"})[0] == 400
+        assert _http_call(f"{base}/api/quarantine/action", method="POST", headers=hdr, body={"action": "bad", "path": "x"})[0] == 400
+        assert _http_call(f"{base}/api/quarantine/action", method="POST", headers=hdr, body={"action": "quarantine", "path": ""})[0] == 400
+        assert _http_call(f"{base}/api/quarantine/action", method="POST", headers=hdr, body={"action": "quarantine", "path": str(tmp_path / "yok.bin")})[0] == 404
+
+        # Kontrol, downloads, clipboard tarama
+        st_k, _, raw_k = _http_call(f"{base}/api/kontrol", headers=hdr)
+        assert st_k == 200 and json.loads(raw_k)["ok"] is True
+        st_dl, _, raw_dl = _http_call(f"{base}/api/scan/downloads", method="POST", headers=hdr, body={})
+        assert st_dl == 200 and "scanned_count" in json.loads(raw_dl)
+        st_cb, _, raw_cb = _http_call(f"{base}/api/scan/clipboard", method="POST", headers=hdr, body={})
+        assert st_cb == 200 and json.loads(raw_cb)["ok"] is True
+
+        # Karantina + geri yükleme
+        sample = tmp_path / "rapor.ps1"
+        sample.write_text("powershell -w hidden -enc JAB4", encoding="utf-8")
+        st_q, _, raw_q = _http_call(
+            f"{base}/api/quarantine/action",
+            method="POST",
+            headers=hdr,
+            body={"action": "quarantine", "path": str(sample)},
+        )
+        assert st_q == 200
+        qpath = json.loads(raw_q)["record"]["quarantine_path"]
+        assert Path(qpath).exists() and not sample.exists()
+
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        st_res, _, raw_res = _http_call(
+            f"{base}/api/quarantine/action",
+            method="POST",
+            headers=hdr,
+            body={"action": "restore", "path": qpath},
+        )
+        assert st_res == 200 and Path(json.loads(raw_res)["restored_to"]).exists()
+
+        # Shutdown
+        st_sd, _, raw_sd = _http_call(f"{base}/api/shutdown", method="POST", headers=hdr, body={})
+        assert st_sd == 200 and json.loads(raw_sd)["ok"] is True
+        assert srv.stop_event.is_set()
+    finally:
+        srv.stop()
+        settings_store.set_explicit(None)
+
+
+def test_window_host_helpers_and_fallbacks(monkeypatch, tmp_path):
+    import threading
+
+    from app import window_host
+
+    ico = window_host._find_elfsec_ico()
+    assert ico is None or ico.name == "elfsec.ico"
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "local"))
+    st_dir = window_host._webview_storage_dir()
+    assert st_dir.exists() and st_dir.name == "webview2"
+
+    class _DummySrv:
+        url = "http://127.0.0.1:1234/?token=x"
+        stop_event = threading.Event()
+        window_controller = None
+
+    # Fallback env aktifken False dönmeli
+    monkeypatch.setenv("ELFSEC_UI_BROWSER_FALLBACK", "1")
+    assert window_host.launch_native_window(_DummySrv()) is False
+    monkeypatch.delenv("ELFSEC_UI_BROWSER_FALLBACK", raising=False)
+
+    # Main thread dışında False dönmeli
+    box = {"res": None}
+    t = threading.Thread(target=lambda: box.__setitem__("res", window_host.launch_native_window(_DummySrv())))
+    t.start()
+    t.join()
+    assert box["res"] is False
+
+    # Non-Windows koruma yolları
+    monkeypatch.setattr(window_host.os, "name", "posix")
+    assert window_host._get_cursor_pos() is None
+    assert window_host._get_window_rect(1) is None
+    assert window_host._get_monitor_work_area(1) is None
+    assert window_host._set_window_rect(1, (0, 0, 100, 100)) is False
+    assert window_host._move_window_to(1, 10, 10) is False
+    assert window_host._start_win32_drag(1) is False
 

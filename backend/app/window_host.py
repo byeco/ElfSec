@@ -214,6 +214,109 @@ def _set_window_rect(hwnd: int, rect: tuple[int, int, int, int]) -> bool:
         return False
 
 
+def _get_cursor_pos() -> tuple[int, int] | None:
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        pt = wintypes.POINT()
+        user32 = ctypes.windll.user32
+        user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        user32.GetCursorPos.restype = wintypes.BOOL
+        if user32.GetCursorPos(ctypes.byref(pt)):
+            return (int(pt.x), int(pt.y))
+    except Exception:
+        pass
+    return None
+
+
+def _move_window_to(hwnd: int, x: int, y: int) -> bool:
+    if os.name != "nt" or not hwnd:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        user32.SetWindowPos.argtypes = [
+            wintypes.HWND,
+            wintypes.HWND,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        ]
+        user32.SetWindowPos.restype = wintypes.BOOL
+        SWP_NOSIZE = 0x0001
+        SWP_NOZORDER = 0x0004
+        SWP_NOACTIVATE = 0x0010
+        return bool(
+            user32.SetWindowPos(
+                wintypes.HWND(hwnd),
+                None,
+                int(x),
+                int(y),
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        )
+    except Exception:
+        return False
+
+
+def _start_win32_drag(hwnd: int, native_form: Any = None) -> bool:
+    """Win32 ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION) ile yerel pencere taşımayı başlatır."""
+    if os.name != "nt" or not hwnd:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        user32.ReleaseCapture.argtypes = []
+        user32.ReleaseCapture.restype = wintypes.BOOL
+        user32.SendMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.SendMessageW.restype = ctypes.c_ssize_t
+        user32.PostMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.PostMessageW.restype = wintypes.BOOL
+
+        WM_NCLBUTTONDOWN = 0x00A1
+        HTCAPTION = 2
+
+        def _do_drag() -> None:
+            user32.ReleaseCapture()
+            user32.SendMessageW(wintypes.HWND(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
+
+        begin_invoke = getattr(native_form, "BeginInvoke", None) if native_form is not None else None
+        if callable(begin_invoke):
+            try:
+                from System import Action
+
+                begin_invoke(Action(_do_drag))
+                return True
+            except Exception:
+                pass
+
+        user32.ReleaseCapture()
+        return bool(user32.PostMessageW(wintypes.HWND(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0))
+    except Exception:
+        return False
+
+
 class NativeWindowController:
     """Özel başlık çubuğu üzerinden yerel pywebview penceresini yöneten denetleyici."""
 
@@ -304,6 +407,39 @@ class NativeWindowController:
             self._window.on_top = self._pinned
         except Exception:
             pass
+        return self.get_state()
+
+    def begin_drag(self) -> dict:
+        """Pencereyi imleçle sürüklemeyi başlatır; büyütülmüşse önce normal boyuta döndürür."""
+        hwnd = self._get_hwnd() if os.name == "nt" else None
+        if not hwnd:
+            return {"started": False, **self.get_state()}
+
+        if self.is_maximized():
+            rw, rh = (self._restore_rect[2], self._restore_rect[3]) if self._restore_rect else (860, 580)
+            cur = _get_cursor_pos()
+            if cur is not None:
+                rx = max(0, cur[0] - rw // 2)
+                ry = max(0, cur[1] - 18)
+            elif self._restore_rect:
+                rx, ry = self._restore_rect[0], self._restore_rect[1]
+            else:
+                rx, ry = 80, 60
+            _set_window_rect(hwnd, (rx, ry, rw, rh))
+            _set_dwm_corner_round(hwnd, True)
+            self._maximized = False
+
+        native_form = getattr(self._window, "native", None)
+        started = _start_win32_drag(hwnd, native_form)
+        return {"started": bool(started), **self.get_state()}
+
+    def move_by(self, dx: int, dy: int) -> dict:
+        """Yedek taşıma: pencereyi verilen piksel farkı kadar kaydırır."""
+        hwnd = self._get_hwnd() if os.name == "nt" else None
+        if hwnd and (dx or dy):
+            rect = _get_window_rect(hwnd)
+            if rect:
+                _move_window_to(hwnd, rect[0] + int(dx), rect[1] + int(dy))
         return self.get_state()
 
     def close(self) -> dict:
