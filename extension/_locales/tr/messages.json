@@ -256,5 +256,218 @@
   },
   "aboutTitle": {
     "message": "Gizlilik Garantisi ve Desteklenen Sağlayıcılar"
+  },
+  "navAria": {
+    "message": "Ayar kategorileri"
+  },
+  "sideOfflineBadge": {
+    "message": "%100 Çevrimdışı Analiz"
+  },
+  "masterToggleAria": {
+    "message": "Genel korumayı aç veya kapat"
+  },
+  "shieldActive": {
+    "message": "Aktif"
+  },
+  "shieldOff": {
+    "message": "Kapalı"
+  },
+  "activeShieldsChip": {
+    "message": "Kalkan"
+  },
+  "masterPausedHint": {
+    "message": "Genel koruma şu an duraklatıldı. Aşağıdaki kalkan modülleri siz genel korumayı tekrar etkinleştirene kadar beklemeye alındı."
+  },
+  "themeDesc": {
+    "message": "Arayüz renk düzenini cihazınıza veya tercihinize göre seçin."
+  },
+  "themeAutoDesc": {
+    "message": "İşletim sistemini izler"
+  },
+  "themeDarkDesc": {
+    "message": "Obsidyen & Zümrüt"
+  },
+  "themeLightDesc": {
+    "message": "Aydınlık & Net"
+  },
+  "nativeHostLabel": {
+    "message": "Host"
+  },
+  "nativeConnectedTitle": {
+    "message": "Masaüstü ElfSec motoru bağlı"
+  },
+  "nativeDisconnectedTitle": {
+    "message": "Masaüstü Native Host bağlı değil"
+  },
+  "nativeDisconnectedDetail": {
+    "message": "Tarayıcı yedek motoru aktif. Derin PE/MotW taraması için aşağıdaki komutu çalıştırın."
+  },
+  "nativeEngineLabel": {
+    "message": "Motor"
+  },
+  "nativeFallbackChip": {
+    "message": "Tarayıcı Yedek"
+  },
+  "extIdLabel": {
+    "message": "Uzantı Kimliği:"
+  },
+  "copyIdBtn": {
+    "message": "ID Kopyala"
+  },
+  "copiedShort": {
+    "message": "Kopyalandı"
+  },
+  "terminalTitle": {
+    "message": "PowerShell / CMD Kurulum Komutu"
+  },
+  "step1Title": {
+    "message": "Komutu Kopyalayın"
+  },
+  "step1Desc": {
+    "message": "Uzantı kimliğinizi içeren yukarıdaki register komutunu kopyalayın."
+  },
+  "step2Title": {
+    "message": "Terminalde Çalıştırın"
+  },
+  "step2Desc": {
+    "message": "Chrome, Edge, Brave veya Firefox manifesti otomatik kaydedilir."
+  },
+  "step3Title": {
+    "message": "Bağlantıyı Test Edin"
+  },
+  "step3Desc": {
+    "message": "Yukarıdaki test butonuyla masaüstü motor sürümünü doğrulayın."
+  },
+  "trustedPlaceholder": {
+    "message": "ornek-sirketim.com.tr"
+  },
+  "trustedEmpty": {
+    "message": "Henüz güvenilen alan adı eklenmedi. Eklediğiniz alan adları burada listelenir."
+  },
+  "trustedBadge": {
+    "message": "İzin Listesinde"
+  },
+  "trustedCountSuffix": {
+    "message": "kayıt"
+  },
+  "removeBtn": {
+    "message": "Sil"
+  },
+  "errInvalidDomain": {
+    "message": "Geçerli bir alan adı girin (örn: sirketim.com.tr)."
+  },
+  "errBrandNameRequired": {
+    "message": "Marka adı boş bırakılamaz."
+  },
+  "errBrandDomainInvalid": {
+    "message": "Geçerli bir resmi alan adı girin (örn: sirketim.com)."
+  },
+  "errBrandEmailInvalid": {
+    "message": "Resmi e-posta adresi geçersiz görünüyor."
+  },
+  "brandNameLabel": {
+    "message": "Marka Adı"
+  },
+  "brandDomainLabel": {
+    "message": "Resmi Alan Adı"
+  },
+  "brandEmailLabel": {
+    "message": "Resmi E-posta (isteğe bağlı)"
+  },
+  "brandNamePh": {
+    "message": "Örn: Şirketim"
+  },
+  "brandDomainPh": {
+    "message": "sirketim.com"
+  },
+  "brandEmailPh": {
+    "message": "ik@sirketim.com"
+  },
+  "brandsCountSuffix": {
+    "message": "özel"
+  },
+  "brandsEmpty": {
+    "message": "Henüz özel marka eklenmedi. Kurumunuzun resmi alan adını ekleyerek taklit e-postaları tespit edin."
+  },
+  "builtinSearchPh": {
+    "message": "Marka veya alan adı ara (örn: Apple, Garanti, e-Devlet)…"
+  },
+  "builtinClearAria": {
+    "message": "Aramayı temizle"
+  },
+  "builtinEmpty": {
+    "message": "Eşleşen yerleşik marka bulunamadı."
+  },
+  "historyDesc": {
+    "message": "Yerel tarama istatistikleriniz ve son tespit edilen şüpheli olaylar."
+  },
+  "alertsClean": {
+    "message": "Seçili filtrede kayıtlı alarm bulunamadı."
+  },
+  "noSubject": {
+    "message": "(konu yok)"
+  },
+  "pillarLocalTitle": {
+    "message": "%100 Yerel Analiz"
+  },
+  "pillarLocalDesc": {
+    "message": "E-posta, bağlantı ve indirme denetimleri doğrudan cihazınızda çalışır."
+  },
+  "pillarZeroTitle": {
+    "message": "Sıfır Telemetri & Bulut"
+  },
+  "pillarZeroDesc": {
+    "message": "Hiçbir harici sunucuya, API'ye veya izleme servisine ağ isteği yapılmaz."
+  },
+  "pillarStorageTitle": {
+    "message": "Yalnızca Tarayıcı Deposu"
+  },
+  "pillarStorageDesc": {
+    "message": "Tüm tercihler, özel markalar ve geçmiş yalnızca tarayıcınızda saklanır."
+  },
+  "supportedProvidersTitle": {
+    "message": "Desteklenen Webmail Sağlayıcıları"
+  },
+  "providerReady": {
+    "message": "Aktif"
+  },
+  "toastSaved": {
+    "message": "Ayarlar kaydedildi"
+  },
+  "toastProtectionOn": {
+    "message": "Genel koruma etkinleştirildi"
+  },
+  "toastProtectionOff": {
+    "message": "Genel koruma duraklatıldı"
+  },
+  "toastThemeChanged": {
+    "message": "Tema güncellendi"
+  },
+  "toastDomainAdded": {
+    "message": "Alan adı güvenilenlere eklendi"
+  },
+  "toastDomainRemoved": {
+    "message": "Alan adı kaldırıldı"
+  },
+  "toastBrandAdded": {
+    "message": "Özel marka eklendi"
+  },
+  "toastBrandRemoved": {
+    "message": "Özel marka kaldırıldı"
+  },
+  "toastExported": {
+    "message": "Geçmiş JSON olarak indirildi"
+  },
+  "toastCleared": {
+    "message": "Tüm istatistik ve geçmiş temizlendi"
+  },
+  "toastIdCopied": {
+    "message": "Uzantı kimliği kopyalandı"
+  },
+  "toastNativeOk": {
+    "message": "Masaüstü Native Host bağlantısı doğrulandı"
+  },
+  "toastNativeFallback": {
+    "message": "Masaüstü host bulunamadı — yedek motor aktif"
   }
 }

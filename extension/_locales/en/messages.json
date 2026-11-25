@@ -256,5 +256,218 @@
   },
   "aboutTitle": {
     "message": "Privacy Guarantee and Supported Providers"
+  },
+  "navAria": {
+    "message": "Settings categories"
+  },
+  "sideOfflineBadge": {
+    "message": "100% Offline Analysis"
+  },
+  "masterToggleAria": {
+    "message": "Toggle global protection"
+  },
+  "shieldActive": {
+    "message": "Active"
+  },
+  "shieldOff": {
+    "message": "Off"
+  },
+  "activeShieldsChip": {
+    "message": "Shields"
+  },
+  "masterPausedHint": {
+    "message": "Global protection is currently paused. Shield modules below are on standby until you re-enable global protection."
+  },
+  "themeDesc": {
+    "message": "Choose the interface color scheme matching your device or preference."
+  },
+  "themeAutoDesc": {
+    "message": "Follows OS setting"
+  },
+  "themeDarkDesc": {
+    "message": "Obsidian & Emerald"
+  },
+  "themeLightDesc": {
+    "message": "Crisp & Clean"
+  },
+  "nativeHostLabel": {
+    "message": "Host"
+  },
+  "nativeConnectedTitle": {
+    "message": "Desktop ElfSec engine connected"
+  },
+  "nativeDisconnectedTitle": {
+    "message": "Desktop Native Host disconnected"
+  },
+  "nativeDisconnectedDetail": {
+    "message": "Browser fallback engine is active. Run the command below for deep PE/MotW scanning."
+  },
+  "nativeEngineLabel": {
+    "message": "Engine"
+  },
+  "nativeFallbackChip": {
+    "message": "Browser Fallback"
+  },
+  "extIdLabel": {
+    "message": "Extension ID:"
+  },
+  "copyIdBtn": {
+    "message": "Copy ID"
+  },
+  "copiedShort": {
+    "message": "Copied"
+  },
+  "terminalTitle": {
+    "message": "PowerShell / CMD Registration Command"
+  },
+  "step1Title": {
+    "message": "Copy the Command"
+  },
+  "step1Desc": {
+    "message": "Copy the registration command above containing your extension ID."
+  },
+  "step2Title": {
+    "message": "Run in Terminal"
+  },
+  "step2Desc": {
+    "message": "Chrome, Edge, Brave, or Firefox manifest is registered automatically."
+  },
+  "step3Title": {
+    "message": "Test Connection"
+  },
+  "step3Desc": {
+    "message": "Verify the desktop engine version with the test button above."
+  },
+  "trustedPlaceholder": {
+    "message": "example-company.com"
+  },
+  "trustedEmpty": {
+    "message": "No trusted domains added yet. Domains you allow will appear here."
+  },
+  "trustedBadge": {
+    "message": "Allowlisted"
+  },
+  "trustedCountSuffix": {
+    "message": "entries"
+  },
+  "removeBtn": {
+    "message": "Remove"
+  },
+  "errInvalidDomain": {
+    "message": "Enter a valid domain name (e.g. company.com)."
+  },
+  "errBrandNameRequired": {
+    "message": "Brand name cannot be empty."
+  },
+  "errBrandDomainInvalid": {
+    "message": "Enter a valid official domain (e.g. company.com)."
+  },
+  "errBrandEmailInvalid": {
+    "message": "Official email address looks invalid."
+  },
+  "brandNameLabel": {
+    "message": "Brand Name"
+  },
+  "brandDomainLabel": {
+    "message": "Official Domain"
+  },
+  "brandEmailLabel": {
+    "message": "Official Email (optional)"
+  },
+  "brandNamePh": {
+    "message": "e.g. Acme Corp"
+  },
+  "brandDomainPh": {
+    "message": "acme.com"
+  },
+  "brandEmailPh": {
+    "message": "hr@acme.com"
+  },
+  "brandsCountSuffix": {
+    "message": "custom"
+  },
+  "brandsEmpty": {
+    "message": "No custom brands added yet. Add your organization's official domain to detect impersonation."
+  },
+  "builtinSearchPh": {
+    "message": "Search brand or domain (e.g. Apple, PayPal, GitHub)…"
+  },
+  "builtinClearAria": {
+    "message": "Clear search"
+  },
+  "builtinEmpty": {
+    "message": "No matching built-in brands found."
+  },
+  "historyDesc": {
+    "message": "Your local scan statistics and recently detected suspicious events."
+  },
+  "alertsClean": {
+    "message": "No recorded alerts match the selected filter."
+  },
+  "noSubject": {
+    "message": "(no subject)"
+  },
+  "pillarLocalTitle": {
+    "message": "100% Local Analysis"
+  },
+  "pillarLocalDesc": {
+    "message": "Email, link, and download checks execute directly on your device."
+  },
+  "pillarZeroTitle": {
+    "message": "Zero Telemetry & Cloud"
+  },
+  "pillarZeroDesc": {
+    "message": "No network requests are ever sent to external servers, APIs, or trackers."
+  },
+  "pillarStorageTitle": {
+    "message": "Browser-Only Storage"
+  },
+  "pillarStorageDesc": {
+    "message": "All preferences, custom brands, and history stay inside your browser storage."
+  },
+  "supportedProvidersTitle": {
+    "message": "Supported Webmail Providers"
+  },
+  "providerReady": {
+    "message": "Active"
+  },
+  "toastSaved": {
+    "message": "Settings saved"
+  },
+  "toastProtectionOn": {
+    "message": "Global protection enabled"
+  },
+  "toastProtectionOff": {
+    "message": "Global protection paused"
+  },
+  "toastThemeChanged": {
+    "message": "Theme updated"
+  },
+  "toastDomainAdded": {
+    "message": "Domain added to allowlist"
+  },
+  "toastDomainRemoved": {
+    "message": "Domain removed"
+  },
+  "toastBrandAdded": {
+    "message": "Custom brand added"
+  },
+  "toastBrandRemoved": {
+    "message": "Custom brand removed"
+  },
+  "toastExported": {
+    "message": "History exported as JSON"
+  },
+  "toastCleared": {
+    "message": "All stats and history cleared"
+  },
+  "toastIdCopied": {
+    "message": "Extension ID copied"
+  },
+  "toastNativeOk": {
+    "message": "Desktop Native Host connection verified"
+  },
+  "toastNativeFallback": {
+    "message": "Desktop host not found — fallback engine active"
   }
 }

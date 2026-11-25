@@ -11,7 +11,7 @@
 - **Popup & Ayarlar & Webmail Arayüzü (`extension/popup.*`, `extension/options.*`, `extension/content.js`, `extension/banner.css`):**
   - Emojiler yerine keskin inline SVG ikonlar kullanıldı.
   - Popup 3 sekmeli (Genel, Hızlı Tarama, Alarmlar) yapıya, 4'lü KPI ızgarasına, hızlı kalkan anahtarlarına, son tarama özetine ve risk ilerleme çubuklu sonuç kartına kavuştu.
-  - Ayarlar sayfası sol kenar çubuklu 2 sütunlu düzene, canlı Native Host testine, tema seçicisine, satır içi alan adı/marka doğrulamasına, aranabilir 22 yerleşik marka kataloğuna ve 2 adımlı silme onayına geçirildi.
+  - Ayarlar sayfası (`extension/options.html`, `extension/options.css`, `extension/options.js`) baştan sona yenilendi: scroll-spy ve canlı sayaçlı sol kenar çubuğu, genel koruma hero kartı, 2x2 ikonlu kalkan modül kartları, önizlemeli görsel tema kartları, koyu terminal komut kutusu, monogramlı izin/marka listeleri, filtreli alarm geçmişi ve kayan bildirim (toast) eklendi.
   - Webmail içerik betiğinde görünür Gmail mesaj gövdesi seçimi, sıkı Outlook ek eşleşmesi, kompakt açılır/kapanır `LOW` risk banner'ı ("Detay" ve "Bu alana güven"), protokol rozetli hover önizleme ve karşılaştırmalı engel modalı eklendi.
 
 ## v1.6.0 — Mağaza Hazır Tarayıcı Uzantısı (Chrome / Edge / Firefox) + İndirme & Link Kalkanı
