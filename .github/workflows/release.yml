@@ -48,16 +48,16 @@ jobs:
       - run: python scripts/pack_extensions.py --out ..
       - run: >
           pyinstaller --noconfirm --clean --onefile --windowed --uac-admin
-          --icon ..\installer\elfsec.ico
+          --icon "${{ github.workspace }}\installer\elfsec.ico"
           --name ElfSecSetup
-          --distpath ..\installer\Output
-          --workpath ..\installer\build
-          --specpath ..\installer\build
-          --add-data "dist\elfsec.exe;payload"
-          --add-data "..\installer\elfsec.ico;payload"
-          --add-data "..\extension\icons\icon128.png;payload"
-          --add-data "..\extension;payload\extension"
-          ..\installer\setup_wizard_gui.py
+          --distpath "${{ github.workspace }}\installer\Output"
+          --workpath "${{ github.workspace }}\installer\build"
+          --specpath "${{ github.workspace }}\installer\build"
+          --add-data "${{ github.workspace }}\backend\dist\elfsec.exe;payload"
+          --add-data "${{ github.workspace }}\installer\elfsec.ico;payload"
+          --add-data "${{ github.workspace }}\extension\icons\icon128.png;payload"
+          --add-data "${{ github.workspace }}\extension;payload\extension"
+          "${{ github.workspace }}\installer\setup_wizard_gui.py"
       - uses: actions/upload-artifact@v4
         with:
           name: elfsec-windows

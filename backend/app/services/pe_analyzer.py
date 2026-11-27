@@ -585,7 +585,7 @@ def analyze_pe_file(
 
     use_def = bool(cfg.get("exe_defender_scan", False)) if run_defender is None else bool(run_defender)
     defender_res: dict[str, Any] = {"available": False, "checked": False, "infected": False, "threat_name": ""}
-    if use_def and os.name == "nt":
+    if use_def:
         try:
             if path.stat().st_size >= 64:
                 defender_res = scan_with_defender(path)
