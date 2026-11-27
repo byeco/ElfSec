@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   linkModal: true,
   downloadsShield: true,
   trackerCounter: true,
+  nativeBridgeEnabled: false,
   theme: "auto",
   trustedDomains: [],
   customBrands: []
@@ -55,7 +56,7 @@ function normalizeDomain(value) {
 function sanitizeSettings(partial, base) {
   const out = { ...DEFAULT_SETTINGS, ...(base || {}) };
   if (!partial || typeof partial !== "object") return out;
-  ["enabled", "webmailShield", "linkModal", "downloadsShield", "trackerCounter"].forEach((k) => {
+  ["enabled", "webmailShield", "linkModal", "downloadsShield", "trackerCounter", "nativeBridgeEnabled"].forEach((k) => {
     if (Object.prototype.hasOwnProperty.call(partial, k)) out[k] = Boolean(partial[k]);
   });
   if (Object.prototype.hasOwnProperty.call(partial, "theme")) {
@@ -291,26 +292,34 @@ async function scanEmail(payload, tabId) {
     return trustedReport;
   }
 
-  const nativeReq = {
-    action: "analyze_email",
-    provider: payload.provider || "webmail",
-    subject: payload.subject || "",
-    sender: payload.sender || "",
-    body: payload.body || "",
-    urls: Array.isArray(payload.urls) ? payload.urls : [],
-    attachments: Array.isArray(payload.attachments) ? payload.attachments : []
-  };
-  let report = await sendToNative(nativeReq);
-  const nativeConnected = Boolean(report && report.ok);
-  const nativeVersion = nativeConnected ? (report.version || "") : "";
+  const bridgeEnabled = st.settings.nativeBridgeEnabled === true;
+  let report = null;
+  let nativeConnected = false;
+  let nativeVersion = "";
+  if (bridgeEnabled) {
+    const nativeReq = {
+      action: "analyze_email",
+      provider: payload.provider || "webmail",
+      subject: payload.subject || "",
+      sender: payload.sender || "",
+      body: payload.body || "",
+      urls: Array.isArray(payload.urls) ? payload.urls : [],
+      attachments: Array.isArray(payload.attachments) ? payload.attachments : []
+    };
+    report = await sendToNative(nativeReq);
+    nativeConnected = Boolean(report && report.ok);
+    nativeVersion = nativeConnected ? (report.version || "") : "";
+  }
   if (!nativeConnected) {
     report = ElfSecFallback.analyzeEmail(payload, st.settings);
     report.provider = payload.provider || "webmail";
     report.subject = payload.subject || "";
     report.sender = payload.sender || "";
-    report.native_fallback_reason = "Masaüstü Native Host bağlı değil (tarayıcı yedek motoru kullanıldı).";
+    if (bridgeEnabled) {
+      report.native_fallback_reason = "Masaüstü Native Host bağlı değil (tarayıcı yedek motoru kullanıldı).";
+    }
   }
-  report.via = nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek Motoru";
+  report.via = nativeConnected ? "Native ElfSec" : (bridgeEnabled ? "Tarayıcı Yedek Motoru" : "Tarayıcı Motoru");
   report.linkModal = Boolean(st.settings.linkModal);
   report.trackerCounter = Boolean(st.settings.trackerCounter);
   report.theme = st.settings.theme || "auto";
@@ -331,9 +340,10 @@ async function scanEmail(payload, tabId) {
 async function scanTextOrUrl(text, source) {
   const st = await getState();
   const cleanText = String(text || "").slice(0, MAX_SCAN_TEXT);
-  let report = await sendToNative({ action: "analyze_url", text: cleanText });
+  const bridgeEnabled = st.settings.nativeBridgeEnabled === true;
+  let report = bridgeEnabled ? await sendToNative({ action: "analyze_url", text: cleanText }) : null;
   const nativeConnected = Boolean(report && report.ok);
-  const nativeVersion = nativeConnected ? (report.version || "") : st.nativeVersion;
+  const nativeVersion = nativeConnected ? (report.version || "") : (bridgeEnabled ? st.nativeVersion : "");
   if (!nativeConnected) {
     report = ElfSecFallback.analyzeText(cleanText, st.settings);
   }
@@ -354,7 +364,7 @@ async function scanTextOrUrl(text, source) {
       report.reasons = [line].concat(rs);
     }
   }
-  report.via = nativeConnected ? "Native ElfSec" : "Tarayıcı Yedek Motoru";
+  report.via = nativeConnected ? "Native ElfSec" : (bridgeEnabled ? "Tarayıcı Yedek Motoru" : "Tarayıcı Motoru");
   report.source = source || "quick_scan";
   report.provider = "web";
   report.target = cleanText.slice(0, 120);
@@ -375,11 +385,16 @@ function notifyRiskyDownload(report) {
     if (!chrome.notifications || !chrome.notifications.create) return;
     const fname = report.filename || "İndirilen dosya";
     const reason = (report.reasons && report.reasons[0]) || report.summary || "";
+    const autoQ = Boolean(report.auto_protected);
+    const title = autoQ
+      ? `ElfSec Otomatik Karantina [${report.risk_level}] ${report.risk_score}/100`
+      : `ElfSec İndirme Uyarısı [${report.risk_level}] ${report.risk_score}/100`;
+    const prefix = autoQ ? "Zararlı dosya karantinaya alındı — " : "";
     chrome.notifications.create(`elfsec-dl-${Date.now()}`, {
       type: "basic",
       iconUrl: "icons/icon128.png",
-      title: `ElfSec İndirme Uyarısı [${report.risk_level}] ${report.risk_score}/100`,
-      message: `${fname}: ${reason}`.slice(0, 220),
+      title,
+      message: `${prefix}${fname}: ${reason}`.slice(0, 220),
       priority: 2
     });
   } catch (_e) {
@@ -476,7 +491,10 @@ if (chrome.downloads && chrome.downloads.onCreated) {
     chrome.downloads.search({ id: delta.id }, async (items) => {
       if (!items || !items.length || !items[0].filename) return;
       const dl = items[0];
-      let rep = await sendToNative({ action: "scan_file", path: dl.filename });
+      const bridgeEnabled = st.settings.nativeBridgeEnabled === true;
+      let rep = bridgeEnabled
+        ? await sendToNative({ action: "scan_file", path: dl.filename, auto_protect: false })
+        : null;
       const nativeOk = Boolean(rep && rep.ok);
       if (!nativeOk) {
         rep = ElfSecFallback.analyzeDownload({
@@ -496,7 +514,9 @@ if (chrome.downloads && chrome.downloads.onCreated) {
         completed: true
       });
       await recordScan(rep, nativeOk, nativeOk ? (rep.version || "") : st.nativeVersion);
-      if (isHigh && (!prev || !prev.earlyAlerted || escalated)) {
+      // Native Host bağlı ve kritik ise masaüstü Toast bildirimi zaten yönetilir; çift tarayıcı bildirimi atma.
+      const nativeHandledToast = nativeOk && lvl === "CRITICAL" && !rep.auto_protected;
+      if (!nativeHandledToast && (lvl === "CRITICAL" || (!nativeOk && isHigh)) && (!prev || !prev.earlyAlerted || escalated)) {
         notifyRiskyDownload(rep);
       }
     });
@@ -515,13 +535,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
   if (msg.type === "PING") {
-    sendToNative({ action: "ping" }).then(async (res) => {
+    getState().then(async (st) => {
+      if (!st.settings.nativeBridgeEnabled) {
+        await chrome.storage.local.set({
+          nativeConnected: false,
+          nativeVersion: "",
+          nativeAiEnabled: false,
+          nativeExeShield: false
+        });
+        sendResponse({
+          ok: true,
+          nativeEnabled: false,
+          nativeConnected: false,
+          version: "",
+          engine: "",
+          aiEnabled: false,
+          exeDeepScan: false
+        });
+        return;
+      }
+      const res = await sendToNative({ action: "ping" });
       const connected = Boolean(res && res.ok);
       await chrome.storage.local.set({
         nativeConnected: connected,
-        nativeVersion: connected ? (res.version || "") : ""
+        nativeVersion: connected ? (res.version || "") : "",
+        nativeAiEnabled: connected ? Boolean(res.ai_enabled) : false,
+        nativeExeShield: connected ? Boolean(res.exe_deep_scan) : false
       });
-      sendResponse({ ok: true, nativeConnected: connected, version: res.version || "", engine: res.engine || "" });
+      sendResponse({
+        ok: true,
+        nativeEnabled: true,
+        nativeConnected: connected,
+        version: res.version || "",
+        engine: res.engine || "",
+        aiEnabled: Boolean(res && res.ai_enabled),
+        exeDeepScan: Boolean(res && res.exe_deep_scan)
+      });
     });
     return true;
   }
@@ -572,7 +621,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "UPDATE_SETTINGS") {
     getState().then(async (st) => {
       const next = sanitizeSettings(msg.settings, st.settings);
-      await chrome.storage.local.set({ enabled: Boolean(next.enabled), settings: next });
+      const patch = { enabled: Boolean(next.enabled), settings: next };
+      if (!next.nativeBridgeEnabled) {
+        patch.nativeConnected = false;
+        patch.nativeVersion = "";
+        patch.nativeAiEnabled = false;
+        patch.nativeExeShield = false;
+      }
+      await chrome.storage.local.set(patch);
       await syncGlobalBadge(next.enabled);
       broadcastSettings(next);
       sendResponse({ ok: true, settings: next });

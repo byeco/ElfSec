@@ -392,6 +392,16 @@
     return empty;
   }
 
+  function isShortenerHost(host) {
+    var h = String(host || "").trim().toLowerCase().replace(/\.$/, "");
+    if (!h) return false;
+    var labels = h.split(".");
+    return SHORTENERS.some(function (s) {
+      if (s.indexOf(".") !== -1) return h === s || h.endsWith("." + s);
+      return labels.indexOf(s) !== -1;
+    });
+  }
+
   function verifyUrl(url, options) {
     var raw = String(url || "").trim();
     var empty = { verified: false, category: "", label: "", detail: "", url: raw, host: "" };
@@ -407,7 +417,7 @@
     var host = (parsed.hostname || "").toLowerCase().replace(/\.$/, "");
     if (!host) return empty;
     var ul = raw.toLowerCase();
-    if (SHORTENERS.some(function (s) { return ul.indexOf(s) !== -1; })) return empty;
+    if (isShortenerHost(host)) return empty;
     var pathLow = (parsed.pathname || "").toLowerCase().replace(/\/+$/, "");
     if (RISKY_EXT.some(function (ext) { return pathLow.endsWith(ext) || ul.replace(/\/+$/, "").endsWith(ext); })) {
       return empty;
@@ -429,7 +439,9 @@
   function checkUrl(url, options) {
     var ul = String(url || "").toLowerCase();
     var host = getHost(url);
-    if (SHORTENERS.some(function (s) { return ul.indexOf(s) !== -1; })) {
+    var opts = options || {};
+    var doCheckExt = opts.checkExt !== false;
+    if (isShortenerHost(host)) {
       return { pts: 15, reason: "Kısaltılmış URL (gerçek adres gizli): " + url, verified: false };
     }
     if (host.indexOf("xn--") === 0 || host.indexOf(".xn--") !== -1) {
@@ -444,7 +456,7 @@
     if (ul.indexOf("@") !== -1) {
       return { pts: 15, reason: "Aldatıcı yapıda URL (@ işareti): " + url, verified: false };
     }
-    if (RISKY_EXT.some(function (ext) { return ul.replace(/\/+$/, "").endsWith(ext); })) {
+    if (doCheckExt && RISKY_EXT.some(function (ext) { return ul.replace(/\/+$/, "").endsWith(ext); })) {
       return { pts: 20, reason: "Çalıştırılabilir/arşiv dosyasına link: " + url, verified: false };
     }
     if (hasMixedScript(host)) {
@@ -779,7 +791,7 @@
     }
 
     if (url) {
-      var ures = checkUrl(url);
+      var ures = checkUrl(url, { checkExt: false });
       if (ures.pts > 0) {
         score += ures.pts;
         susUrls.push(url);

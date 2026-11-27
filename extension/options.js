@@ -38,6 +38,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const nativeStateDetail = $("nativeStateDetail");
   const nativeEngineChip = $("nativeEngineChip");
   const testNativeBtn = $("testNativeBtn");
+  const optNativeBridge = $("optNativeBridge");
+  const cardNativeBridge = $("cardNativeBridge");
+  const stateNativeBridge = $("stateNativeBridge");
   const extIdBadge = $("extIdBadge");
   const copyExtIdBtn = $("copyExtIdBtn");
   const registerCmd = $("registerCmd");
@@ -236,7 +239,28 @@ document.addEventListener("DOMContentLoaded", () => {
     sideMasterLabel.textContent = postureText;
   }
 
-  function setNativeBadge(connected, version, engine) {
+  function setNativeBadge(connected, version, engine, bridgeEnabled) {
+    const enabled = bridgeEnabled !== false;
+    if (!enabled) {
+      const label = I18n.t("statusBrowserOnly", "Tarayıcı Modu");
+      sideNativePill.textContent = label;
+      sideNativePill.className = "elf-pill ok side-native-link";
+      nativeCardPill.textContent = label;
+      nativeCardPill.className = "elf-pill ok";
+      heroNativeChip.textContent = label;
+      heroNativeChip.className = "hero-chip ok";
+      nativeStatusCard.classList.remove("is-connected");
+      nativeStateTitle.textContent = I18n.t("nativeDisabledTitle", "Yalnızca tarayıcı içi koruma aktif");
+      nativeStateDetail.textContent = I18n.t(
+        "nativeDisabledDetail",
+        "Masaüstü Native Host köprüsü kapalı (varsayılan). İsteğe bağlı derin tarama için yukarıdaki anahtardan açabilirsiniz."
+      );
+      nativeEngineChip.textContent = I18n.t("nativeBrowserOnlyChip", "Tarayıcı İçi");
+      testNativeBtn.disabled = true;
+      return;
+    }
+
+    testNativeBtn.disabled = false;
     const label = connected
       ? `Native${version ? ` v${version}` : ""}`
       : I18n.t("statusFallback", "Yedek Mod");
@@ -262,6 +286,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function testNativeConnection(showFeedback) {
+    if (currentSettings.nativeBridgeEnabled !== true) {
+      setNativeBadge(false, "", "", false);
+      return;
+    }
     sideNativePill.textContent = I18n.t("statusChecking", "Kontrol ediliyor");
     sideNativePill.className = "elf-pill warn side-native-link";
     testNativeBtn.disabled = true;
@@ -271,12 +299,16 @@ document.addEventListener("DOMContentLoaded", () => {
       testNativeBtn.disabled = false;
       testNativeBtn.classList.remove("is-spinning");
       if (chrome.runtime.lastError || !ping) {
-        setNativeBadge(false, "", "");
+        setNativeBadge(false, "", "", true);
         if (showFeedback) showToast(I18n.t("toastNativeFallback", "Masaüstü host bulunamadı — yedek motor aktif"), "warn");
         return;
       }
+      if (ping.nativeEnabled === false) {
+        setNativeBadge(false, "", "", false);
+        return;
+      }
       const connected = Boolean(ping.nativeConnected);
-      setNativeBadge(connected, ping.version || "", ping.engine || "");
+      setNativeBadge(connected, ping.version || "", ping.engine || "", true);
       if (showFeedback) {
         showToast(
           connected
@@ -429,6 +461,19 @@ document.addEventListener("DOMContentLoaded", () => {
       optModal.checked = currentSettings.linkModal !== false;
       optDownloads.checked = currentSettings.downloadsShield !== false;
       optTracker.checked = currentSettings.trackerCounter !== false;
+      const bridgeEnabled = currentSettings.nativeBridgeEnabled === true;
+      if (optNativeBridge) optNativeBridge.checked = bridgeEnabled;
+      if (cardNativeBridge) cardNativeBridge.classList.toggle("is-on", bridgeEnabled);
+      if (stateNativeBridge) {
+        stateNativeBridge.textContent = bridgeEnabled
+          ? I18n.t("shieldActive", "Aktif")
+          : I18n.t("shieldOff", "Kapalı");
+      }
+      if (!bridgeEnabled) {
+        setNativeBadge(false, "", "", false);
+      } else {
+        setNativeBadge(Boolean(st.nativeConnected), st.nativeVersion || "", "", true);
+      }
       syncShieldUI(masterEnabled);
       applyThemeSelection(currentSettings.theme || "auto");
 
@@ -577,6 +622,23 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   testNativeBtn.addEventListener("click", () => testNativeConnection(true));
+
+  if (optNativeBridge) {
+    optNativeBridge.addEventListener("change", () => {
+      const bridgeEnabled = optNativeBridge.checked;
+      currentSettings = { ...currentSettings, nativeBridgeEnabled: bridgeEnabled };
+      chrome.runtime.sendMessage({ type: "UPDATE_SETTINGS", settings: currentSettings }, () => {
+        render();
+        if (bridgeEnabled) {
+          showToast(I18n.t("toastNativeBridgeOn", "Masaüstü Native Host köprüsü açıldı"));
+          testNativeConnection(true);
+        } else {
+          setNativeBadge(false, "", "", false);
+          showToast(I18n.t("toastNativeBridgeOff", "Masaüstü Native Host köprüsü kapatıldı — tarayıcı modu aktif"));
+        }
+      });
+    });
+  }
 
   function copyText(text, onSuccess, onFail) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -730,6 +792,10 @@ document.addEventListener("DOMContentLoaded", () => {
     renderBuiltinCatalog();
   });
 
-  testNativeConnection(false);
   render();
+  chrome.runtime.sendMessage({ type: "GET_FULL_STATE" }, (st) => {
+    if (!chrome.runtime.lastError && st && st.settings && st.settings.nativeBridgeEnabled === true) {
+      testNativeConnection(false);
+    }
+  });
 });

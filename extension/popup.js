@@ -323,7 +323,10 @@ document.addEventListener("DOMContentLoaded", () => {
         setStatus(I18n.t("statusOffline", "Bağlantı yok"), "warn");
         return;
       }
-      if (ping && ping.nativeConnected) {
+      if (ping && ping.nativeEnabled === false) {
+        setStatus(I18n.t("statusBrowserOnly", "Tarayıcı Modu"), "ok");
+        statusEl.title = "Yalnızca tarayıcı içi koruma aktif (Masaüstü Native Host isteğe bağlı olarak Ayarlar'dan açılabilir).";
+      } else if (ping && ping.nativeConnected) {
         const v = ping.version ? ` v${ping.version}` : "";
         setStatus(`Native${v}`, "ok");
         statusEl.title = `Masaüstü ElfSec motoru bağlı${ping.engine ? ` (${ping.engine})` : ""}`;

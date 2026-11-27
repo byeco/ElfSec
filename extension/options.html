@@ -18,7 +18,7 @@
         <div>
           <h1 data-i18n="optTitle">ElfSec Ayarlar</h1>
           <small>
-            <span class="ver-pill">v<span id="optVersion">1.6.0</span></span>
+            <span class="ver-pill">v<span id="optVersion">1.7.0</span></span>
             <span data-i18n="openSourceBadge">Açık Kaynak</span>
           </small>
         </div>
@@ -267,6 +267,22 @@
           </button>
         </div>
         <p class="card-desc" data-i18n="nativeDesc">Bu uzantıyı yerel elfsec.exe motoruyla eşleyerek derin dosya (PE/MotW/LOLBin) taraması ve ortak uyarı günlüğü elde edin.</p>
+
+        <label id="cardNativeBridge" class="shield-card" for="optNativeBridge" style="margin-bottom:14px;">
+          <div class="shield-card-top">
+            <div class="shield-card-left">
+              <span class="shield-ico-box" aria-hidden="true">
+                <svg class="elf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a6 6 0 0 1-12 0V8Z"></path></svg>
+              </span>
+              <span id="stateNativeBridge" class="shield-state-badge" data-i18n="shieldOff">Kapalı</span>
+            </div>
+            <span class="elf-switch"><input type="checkbox" id="optNativeBridge" /><span class="elf-slider" aria-hidden="true"></span></span>
+          </div>
+          <div class="shield-card-body">
+            <strong data-i18n="nativeBridgeToggleTitle">Masaüstü Native Host köprüsünü etkinleştir (isteğe bağlı)</strong>
+            <small data-i18n="nativeBridgeToggleDesc">Varsayılan kapalıdır; kapalıyken %100 tarayıcı içi çalışır. Açıkken bile indirilen dosyaları otomatik karantinaya almaz.</small>
+          </div>
+        </label>
 
         <div id="nativeStatusCard" class="native-status-card">
           <div class="native-left">

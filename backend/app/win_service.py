@@ -362,6 +362,7 @@ class ServiceRunner:
             quarantine_dir=self.quarantine_dir,
             alert_log=str(self.alert_log),
             notify=self.notify and not self._game_mode_active,
+            auto_protect=True,
         )
         self._alerts_total += len(file_alerts)
 

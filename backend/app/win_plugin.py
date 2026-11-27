@@ -17,14 +17,14 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.game_mode import GameModeController, apply_process_priority, read_shared_game_mode
-from app.notify import notify_alarm, notify_clipboard_alarm, notify_file_alarm, toast
-from app.privacy import load_privacy_settings, sanitize_alert_for_storage, save_privacy_settings
+from app.notify import notify_alarm, notify_file_alarm, toast
+from app.services.local_ai import load_ai_settings, save_ai_settings
 from app.settings_store import default_user_config_path, find_config_file, get_explicit, machine_data_dir
 from app.tray import hide_console, run_tray_loop
-from app.watchers.clipboard_guard import ClipboardGuard
 from app.watchers.file_watcher import FileWatchState, default_watch_dirs, scan_watch_dirs_once
 from app.win_service import (
     install_service,
@@ -186,6 +186,19 @@ def _reg_exists(hive: str, subkey: str, value_name: str | None = None) -> bool:
         return False
 
 
+def _reg_value(hive: str, subkey: str, value_name: str = "") -> str:
+    if os.name != "nt":
+        return ""
+    import winreg
+
+    try:
+        with winreg.OpenKey(_winreg_root(hive), subkey, 0, winreg.KEY_READ) as key:
+            val, _ = winreg.QueryValueEx(key, value_name)
+            return str(val or "")
+    except OSError:
+        return ""
+
+
 def _remove_registry_entries(user_only: bool = False) -> None:
     if os.name != "nt":
         return
@@ -207,33 +220,260 @@ def register_browser_hosts(
     exe_path: str = "",
     user_only: bool = False,
     extension_ids: list[str] | None = None,
+    integrate_system: bool = False,
+    preserve_existing: bool = True,
+    run_self_test: bool = False,
 ) -> dict:
-    """Chrome, Edge, Brave ve Firefox için Native Messaging host dosyalarını ve kayıtlarını kurar."""
+    """Chrome, Edge, Brave ve Firefox için Native Messaging host dosyalarını ve sistem kayıtlarını kurar."""
     if os.name != "nt":
         return {"ok": False, "error": "Tarayıcı Native Host kaydı yalnızca Windows'ta desteklenir."}
     if not user_only and not is_admin():
         return {"ok": False, "error": "HKLM tarayıcı kaydı için Yönetici izni gerekli (veya --user-only kullanın)."}
 
-    from app.native_host import write_native_host_files
+    from app.native_host import (
+        CHROMIUM_EXT_ID_RE,
+        NATIVE_HOST_NAME,
+        discover_installed_extension_ids,
+        test_native_host_wrapper,
+        write_native_host_files,
+    )
+
+    explicit_ids: list[str] = []
+    for raw_id in (extension_ids or []):
+        eid = str(raw_id or "").strip().lower()
+        if not eid:
+            continue
+        if not CHROMIUM_EXT_ID_RE.match(eid):
+            return {"ok": False, "error": f"Geçersiz Chromium eklenti ID'si: {raw_id}"}
+        if eid not in explicit_ids:
+            explicit_ids.append(eid)
 
     exe = resolve_exe_path(exe_path)
     target_dir = (default_user_config_path().parent if user_only else machine_data_dir()) / "native-host"
+
+    merged_ids: list[str] = []
+    if preserve_existing:
+        for eid in discover_installed_extension_ids(existing_manifest=target_dir / f"{NATIVE_HOST_NAME}.json"):
+            if eid not in merged_ids:
+                merged_ids.append(eid)
+    for eid in explicit_ids:
+        if eid not in merged_ids:
+            merged_ids.append(eid)
+
     try:
-        files = write_native_host_files(target_dir, exe, extension_ids=extension_ids)
+        files = write_native_host_files(target_dir, exe, extension_ids=merged_ids or None)
     except ValueError as e:
         return {"ok": False, "error": str(e)}
+
     entries = build_browser_registry_entries(
         files["chromium_manifest"],
         files["firefox_manifest"],
         user_only=user_only,
     )
-    _apply_registry_entries(entries)
+    sys_entries = build_registry_entries(exe, user_only=user_only) if integrate_system else []
+    _apply_registry_entries(entries + sys_entries)
+
+    self_test = test_native_host_wrapper(Path(files["wrapper"])) if run_self_test else None
     return {
         "ok": True,
         "scope": "HKCU" if user_only else "HKLM",
-        "registry_entries": len(entries),
+        "exe": exe,
+        "extension_ids": merged_ids,
+        "system_integrated": bool(integrate_system),
+        "registry_entries": len(entries) + len(sys_entries),
+        "browser": browser_status(),
+        "self_test": self_test,
         **files,
     }
+
+
+def browser_bridge_details() -> dict:
+    """Kayıtlı tarayıcı manifestini, eşlenen uzantı kimliklerini ve wrapper durumunu döndürür."""
+    from app.native_host import NATIVE_HOST_NAME
+
+    manifest_path = ""
+    for hive in ("HKCU", "HKLM"):
+        for key in (CHROME_NM_KEY, EDGE_NM_KEY, BRAVE_NM_KEY):
+            val = _reg_value(hive, key)
+            if val:
+                manifest_path = val
+                break
+        if manifest_path:
+            break
+
+    if not manifest_path:
+        for cand_dir in (default_user_config_path().parent / "native-host", machine_data_dir() / "native-host"):
+            cand = cand_dir / f"{NATIVE_HOST_NAME}.json"
+            if cand.exists():
+                manifest_path = str(cand)
+                break
+
+    ext_ids: list[str] = []
+    wrapper_path = ""
+    if manifest_path and Path(manifest_path).exists():
+        try:
+            mf = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+            wrapper_path = str(mf.get("path") or "")
+            for orig in mf.get("allowed_origins") or []:
+                s = str(orig).strip()
+                if s.startswith("chrome-extension://"):
+                    ext_ids.append(s.split("chrome-extension://", 1)[1].rstrip("/"))
+        except Exception:
+            pass
+
+    return {
+        "browsers": browser_status(),
+        "manifest_path": manifest_path,
+        "wrapper_path": wrapper_path,
+        "wrapper_exists": bool(wrapper_path and Path(wrapper_path).is_file()),
+        "extension_ids": ext_ids,
+    }
+
+
+_AGENT_MUTEX_NAME = r"Local\ElfSecAgentSingleton"
+
+
+def autopilot_state_path() -> Path:
+    """Kullanıcı dizinindeki Otopilot durum dosyası yolu."""
+    return default_user_config_path().parent / "autopilot_state.json"
+
+
+def read_autopilot_state(path: Path | None = None) -> dict:
+    p = Path(path) if path is not None else autopilot_state_path()
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def write_autopilot_state(patch: dict, path: Path | None = None) -> dict:
+    p = Path(path) if path is not None else autopilot_state_path()
+    cur = read_autopilot_state(p)
+    cur.update(patch or {})
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(cur, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(tmp, p)
+    except OSError:
+        pass
+    return cur
+
+
+def _acquire_agent_mutex() -> int | None:
+    """Tek-örnek (single-instance) Windows Mutex edinir; zaten çalışıyorsa None döner."""
+    if os.name != "nt":
+        return 1
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        handle = kernel32.CreateMutexW(None, False, _AGENT_MUTEX_NAME)
+        last_err = kernel32.GetLastError()
+        if not handle:
+            return None
+        if last_err == 183:  # ERROR_ALREADY_EXISTS
+            kernel32.CloseHandle(handle)
+            return None
+        return int(handle)
+    except Exception:
+        return 1
+
+
+def _release_agent_mutex(handle: int | None) -> None:
+    if os.name != "nt" or not handle or handle == 1:
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        ctypes.windll.kernel32.CloseHandle(wintypes.HANDLE(handle))
+    except Exception:
+        pass
+
+
+def _is_agent_already_running() -> bool:
+    """Arka planda çalışan bir ElfSec ajanının olup olmadığını denetler."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        SYNCHRONIZE = 0x00100000
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenMutexW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+        kernel32.OpenMutexW.restype = wintypes.HANDLE
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        handle = kernel32.OpenMutexW(SYNCHRONIZE, False, _AGENT_MUTEX_NAME)
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def ensure_autopilot_system_ready(start_agent: bool = False, register_system: bool = False) -> dict:
+    """İstek üzerine tarayıcı köprüsü, Windows sağ-tık/otostart ve arka plan ajanını hazırlar."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    if os.name != "nt":
+        return write_autopilot_state({
+            "bootstrapped_at": now,
+            "system_integrated": False,
+            "agent_running": False,
+            "browser_count": 0,
+        })
+
+    if register_system:
+        reg_ok = False
+        br_count = 0
+        try:
+            res = register_browser_hosts(
+                user_only=True,
+                integrate_system=True,
+                preserve_existing=True,
+                run_self_test=False,
+            )
+            reg_ok = bool(res.get("ok"))
+            br_map = res.get("browser") if isinstance(res.get("browser"), dict) else browser_status()
+            br_count = sum(1 for v in br_map.values() if v)
+        except Exception:
+            reg_ok = False
+    else:
+        br_map = browser_status()
+        br_count = sum(1 for v in br_map.values() if v)
+        reg_ok = bool(
+            _reg_exists("HKLM", RUN_KEY, RUN_VALUE_NAME)
+            or _reg_exists("HKCU", RUN_KEY, RUN_VALUE_NAME)
+        )
+
+    agent_running = _is_agent_already_running()
+    if start_agent and not agent_running:
+        try:
+            launched = _launch_agent_detached(resolve_exe_path())
+            if launched:
+                agent_running = True
+        except Exception:
+            pass
+
+    return write_autopilot_state({
+        "bootstrapped_at": now,
+        "system_integrated": reg_ok,
+        "agent_running": agent_running,
+        "browser_count": br_count,
+    })
 
 
 def unregister_browser_hosts(user_only: bool = False) -> dict:
@@ -434,11 +674,10 @@ def run_agent(
     notify: bool = True,
     once: bool = False,
 ) -> int:
-    """Kullanıcı oturumu ajanı: Sistem Tepsisi + KVKK Uyumlu Pano Koruması + Servis Alarm Köprüsü."""
+    """Kullanıcı oturumu ajanı: Sistem Tepsisi + Yerel AI Koruması + Servis Alarm Köprüsü."""
+    del clipboard  # Pano izleme kaldırıldı (imza geriye dönük uyumluluk için korunur)
     log_path = Path(alert_log) if alert_log else (machine_data_dir() / "guard_alerts.jsonl")
     bridge = AlertBridge(log_path, seek_end=not once)
-    clip_enabled = bool(load_privacy_settings().get("clipboard_auto_watch", False)) if clipboard is None else bool(clipboard)
-    clip_guard = ClipboardGuard(enabled=clip_enabled, strict_kvkk=True)
     gm = GameModeController()
     gm_state: dict = gm.evaluate() if not once else {"mode": "auto", "active": False, "process": ""}
     pending_alerts: list[dict] = []
@@ -446,9 +685,7 @@ def run_agent(
 
     def _emit_toast(rep: dict) -> None:
         src = rep.get("source", "")
-        if src == "clipboard":
-            notify_clipboard_alarm(rep)
-        elif src in ("file_watcher", "file_scan"):
+        if src in ("file_watcher", "file_scan"):
             notify_file_alarm(rep)
         else:
             notify_alarm(rep)
@@ -464,12 +701,12 @@ def run_agent(
         _emit_toast(rep)
 
     if once:
-        if clip_guard.enabled:
-            rep = clip_guard.check_once(force=True)
-            if rep and LEVEL_ORDER.get(rep.get("risk_level", "LOW"), 0) >= LEVEL_ORDER.get(alert_on.upper(), 1):
-                _dispatch_alert(rep)
         for row in bridge.poll_once():
             _dispatch_alert(row)
+        return 0
+
+    mutex_handle = _acquire_agent_mutex()
+    if mutex_handle is None:
         return 0
 
     if tray:
@@ -509,34 +746,6 @@ def run_agent(
 
     threading.Thread(target=_game_mode_loop, daemon=True).start()
 
-    def _on_clip_alert(rep: dict) -> None:
-        _dispatch_alert(rep)
-        try:
-            mask = bool(load_privacy_settings().get("kvkk_mask_logs", True))
-            safe_rep = sanitize_alert_for_storage(rep, mask=mask)
-            u_log = default_user_config_path().parent / "clipboard_alerts.jsonl"
-            u_log.parent.mkdir(parents=True, exist_ok=True)
-            with open(u_log, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(safe_rep, ensure_ascii=False, default=str) + "\n")
-        except Exception:
-            pass
-
-    def _clip_interval() -> float:
-        if clipboard is None:
-            try:
-                clip_guard.enabled = bool(load_privacy_settings().get("clipboard_auto_watch", False))
-            except Exception:
-                pass
-        return 15.0 if gm_state.get("active") else 1.5
-
-    if clipboard is not False:
-        threading.Thread(
-            target=clip_guard.run_loop,
-            args=(stop_event, 1.5, "MEDIUM", _on_clip_alert),
-            kwargs={"interval_fn": _clip_interval},
-            daemon=True,
-        ).start()
-
     def _bridge_loop() -> None:
         while not stop_event.is_set():
             for row in bridge.poll_once():
@@ -545,31 +754,62 @@ def run_agent(
 
     threading.Thread(target=_bridge_loop, daemon=True).start()
 
-    def _cb_scan_clipboard() -> None:
-        rep = clip_guard.check_once(force=True)
-        if not rep:
-            toast("ElfSec Pano Taraması", "Pano boş veya metin içermiyor.")
-        elif LEVEL_ORDER.get(rep.get("risk_level", "LOW"), 0) >= LEVEL_ORDER.get("MEDIUM", 1):
-            notify_clipboard_alarm(rep)
-        else:
-            toast("ElfSec Pano Taraması", f"Temiz (skor {rep['risk_score']}/100).")
+    def _autopilot_watch_loop() -> None:
+        from app.privacy import load_privacy_settings
+
+        watch_state = FileWatchState(default_user_config_path().parent / ".autopilot_watch_seen.json")
+        user_alert_log = str(default_user_config_path().parent / "guard_alerts.jsonl")
+        dirs = default_watch_dirs(all_users=False, include_mail_apps=True)
+
+        # İlk açılışta zaten var olan dosyaları sıfırdan alarm yağmuruna tutmamak için durum yüklenir;
+        # daha önce hiç görülmemiş dosyalar yine incelenir.
+        while not stop_event.is_set():
+            try:
+                ai_cfg = load_ai_settings()
+                if ai_cfg.get("autopilot", True):
+                    mask_logs = bool(load_privacy_settings().get("kvkk_mask_logs", True))
+                    scanned, alerts = scan_watch_dirs_once(
+                        dirs,
+                        watch_state,
+                        alert_on=alert_on,
+                        alert_log=user_alert_log,
+                        notify=bool(notify and ai_cfg.get("notify_on_ai_alert", True)),
+                        redact=mask_logs,
+                        auto_protect=True,
+                    )
+                    prev = read_autopilot_state()
+                    auto_q = sum(1 for a in alerts if a.get("auto_protected"))
+                    write_autopilot_state({
+                        "last_scan_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                        "agent_running": True,
+                        "watched_dirs_count": len(dirs),
+                        "last_scanned_count": len(scanned),
+                        "total_scanned": int(prev.get("total_scanned") or 0) + len(scanned),
+                        "total_auto_quarantined": int(prev.get("total_auto_quarantined") or 0) + auto_q,
+                    })
+            except Exception:
+                pass
+            stop_event.wait(120.0 if gm_state.get("active") else 10.0)
+
+    threading.Thread(target=_autopilot_watch_loop, daemon=True).start()
 
     def _cb_scan_downloads() -> None:
         dirs = default_watch_dirs(all_users=False)
         st = FileWatchState(default_user_config_path().parent / ".agent_watch_seen.json")
-        scanned, alerts = scan_watch_dirs_once(dirs, st, alert_on=alert_on, notify=True)
+        scanned, alerts = scan_watch_dirs_once(dirs, st, alert_on=alert_on, notify=True, auto_protect=True)
         if not alerts:
             toast("ElfSec İndirilenler Taraması", f"{len(scanned)} yeni dosya tarandı, tehdit yok.")
 
-    def _cb_toggle_clip() -> None:
-        now_on = clip_guard.toggle()
+    def _cb_toggle_ai() -> None:
         try:
-            save_privacy_settings({"clipboard_auto_watch": now_on})
+            cur = bool(load_ai_settings().get("enabled", True))
+            upd = save_ai_settings({"enabled": not cur})
+            now_on = bool(upd.get("enabled", True))
         except Exception:
-            pass
+            now_on = True
         toast(
-            "ElfSec Pano Koruması (KVKK)",
-            "ClickFix pano koruması AÇIK (yalnızca komut/URL)." if now_on else "Arka plan pano izleme KAPALI.",
+            "ElfSec Yerel AI Güvenlik",
+            "Entegre Yerel AI koruması AÇIK." if now_on else "Entegre Yerel AI koruması KAPALI.",
         )
 
     def _cb_toggle_game_mode() -> None:
@@ -590,6 +830,7 @@ def run_agent(
     def _cb_status() -> None:
         st = plugin_status()
         svc = st.get("service", {})
+        ai_on = bool(load_ai_settings().get("enabled", True))
         gm_info = gm_state if gm_state else st.get("game_mode", {})
         if gm_info.get("active"):
             gm_txt = f"AKTİF ({gm_info.get('process') or 'düşük güç'})"
@@ -597,7 +838,7 @@ def run_agent(
             gm_txt = "Otomatik" if gm_info.get("mode", "auto") == "auto" else "Kapalı"
         toast(
             "ElfSec Güvenlik Durumu",
-            f"Servis: {svc.get('state')} | Pano: {'AÇIK' if clip_guard.enabled else 'KAPALI'} | "
+            f"Servis: {svc.get('state')} | Yerel AI: {'AÇIK' if ai_on else 'KAPALI'} | "
             f"Oyun Modu: {gm_txt} | Alarmlar: {st.get('alerts_count', 0)}",
         )
 
@@ -630,9 +871,8 @@ def run_agent(
             _open_terminal_command(["dashboard"])
 
     callbacks = {
-        "scan_clipboard": _cb_scan_clipboard,
         "scan_downloads": _cb_scan_downloads,
-        "toggle_clipboard": _cb_toggle_clip,
+        "toggle_ai": _cb_toggle_ai,
         "toggle_game_mode": _cb_toggle_game_mode,
         "status": _cb_status,
         "dashboard": _cb_dashboard,
@@ -652,6 +892,7 @@ def run_agent(
             stop_event.set()
         return 0
     finally:
+        _release_agent_mutex(mutex_handle)
         apply_process_priority(False)
         with panel_lock:
             srv = panel_box["server"]

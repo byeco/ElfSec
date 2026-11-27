@@ -16,7 +16,7 @@ import threading
 from pathlib import Path
 
 APP_NAME = "ElfSec Güvenlik Sistemi"
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.7.0"
 APP_PUBLISHER = "byeco"
 APP_URL = "https://byeco.com.tr"
 UNINSTALL_REG_PATH = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\ElfSec"
@@ -162,7 +162,7 @@ def _setup_frameless_taskbar_and_dwm(root, ico_path: Path | None) -> int:
         dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 20, ctypes.byref(dark), ctypes.sizeof(dark))
         corner = ctypes.c_int(2)
         dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 33, ctypes.byref(corner), ctypes.sizeof(corner))
-        border_col = ctypes.c_uint32(0x004D3522)
+        border_col = ctypes.c_uint32(0x002B2724)
         dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 34, ctypes.byref(border_col), ctypes.sizeof(border_col))
 
         if ico_path and ico_path.exists():
@@ -204,21 +204,21 @@ def launch_wizard() -> int:
     import tkinter as tk
     from tkinter import filedialog, messagebox
 
-    BG = "#080d18"
+    BG = "#0b0c0e"
     CHROME = BG
-    SIDEBAR = BG
-    SURFACE_SOFT = "#0d1526"
-    SURFACE = "#101a2e"
-    SURFACE_2 = "#15213a"
-    ACTIVE_STEP_BG = "#102826"
-    HOVER = "#1b2a4a"
-    BORDER = "#18243b"
-    TEXT = "#eef4ff"
-    MUTED = "#869ab8"
+    SIDEBAR = "#0f1013"
+    SURFACE_SOFT = "#0f1013"
+    SURFACE = "#14161a"
+    SURFACE_2 = "#1a1d23"
+    ACTIVE_STEP_BG = "#122620"
+    HOVER = "#21252d"
+    BORDER = "#232730"
+    TEXT = "#f3f4f6"
+    MUTED = "#7a8291"
     BRAND = "#10b981"
     BRAND_LIGHT = "#34d399"
     BRAND_DARK = "#059669"
-    CLOSE_RED = "#e11d48"
+    CLOSE_RED = "#c42b1c"
 
     WIN_W = 840
     WIN_H = 580

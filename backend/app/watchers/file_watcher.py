@@ -136,6 +136,19 @@ def _should_alert(report: dict, alert_on: str) -> bool:
     return LEVEL_ORDER.get(report.get("risk_level", "LOW"), 0) >= LEVEL_ORDER.get(alert_on.upper(), 99)
 
 
+def _is_passive_note_exempt_from_auto_quarantine(fp: Path, rep: dict) -> bool:
+    """Düz metin/not (.txt/.md/.log) dosyalarında çalıştırılabilir tehdit yoksa oto-karantinayı engeller."""
+    if fp.suffix.lower() not in (".txt", ".md", ".log"):
+        return False
+    if rep.get("pe_analysis"):
+        return False
+    reasons_text = " ".join(str(r) for r in (rep.get("reasons") or []))
+    for marker in ("MZ", "RLO", "script", "LOLBin", "Windows Defender"):
+        if marker.lower() in reasons_text.lower():
+            return False
+    return True
+
+
 def scan_watch_dirs_once(
     dirs: list[Path],
     state: FileWatchState,
@@ -149,6 +162,7 @@ def scan_watch_dirs_once(
     notify: bool = True,
     redact: bool = False,
     expand_urls: bool = False,
+    auto_protect: bool = False,
 ) -> tuple[list[dict], list[dict]]:
     """Verilen klasörlerdeki yeni/değişmiş dosyaları tek tur tarar.
 
@@ -157,6 +171,22 @@ def scan_watch_dirs_once(
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     scanned: list[dict] = []
     alerts: list[dict] = []
+
+    ai_cfg: dict = {}
+    if auto_protect:
+        try:
+            from app.services.local_ai import load_ai_settings
+
+            ai_cfg = load_ai_settings()
+        except Exception:
+            ai_cfg = {}
+    ai_auto_on = bool(
+        auto_protect
+        and ai_cfg.get("enabled", True)
+        and ai_cfg.get("auto_protect", False)
+        and str(ai_cfg.get("auto_quarantine_level", "OFF")).upper() != "OFF"
+    )
+    ai_q_level = str(ai_cfg.get("auto_quarantine_level", "OFF")).upper()
 
     for d in dirs:
         if not d.exists() or not d.is_dir():
@@ -179,7 +209,13 @@ def scan_watch_dirs_once(
                 continue
             state.mark(fp)
             scanned.append(rep)
-            if not _should_alert(rep, alert_on):
+
+            should_auto_q = bool(
+                ai_auto_on
+                and LEVEL_ORDER.get(rep.get("risk_level", "LOW"), 0) >= LEVEL_ORDER.get(ai_q_level, 99)
+                and not _is_passive_note_exempt_from_auto_quarantine(fp, rep)
+            )
+            if not _should_alert(rep, alert_on) and not should_auto_q:
                 continue
 
             entry = dict(rep)
@@ -190,10 +226,12 @@ def scan_watch_dirs_once(
             entry["alerted_at"] = now
             entry["source"] = "file_watcher"
 
-            if action == "quarantine":
+            if action == "quarantine" or should_auto_q:
                 try:
                     qrec = quarantine_file(fp, quarantine_dir=quarantine_dir, report=rep)
                     entry["quarantined_to"] = qrec["quarantine_path"]
+                    if should_auto_q and action != "quarantine":
+                        entry["auto_protected"] = True
                 except Exception as e:
                     entry["quarantine_error"] = str(e)
 

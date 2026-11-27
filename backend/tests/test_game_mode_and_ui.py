@@ -604,7 +604,9 @@ def test_desktop_ui_error_paths_kontrol_and_quarantine_restore(monkeypatch, tmp_
         assert _http_call(f"{base}/api/quarantine/action", method="POST", headers=hdr, body={"action": "quarantine", "path": ""})[0] == 400
         assert _http_call(f"{base}/api/quarantine/action", method="POST", headers=hdr, body={"action": "quarantine", "path": str(tmp_path / "yok.bin")})[0] == 404
 
-        # Kontrol, downloads, clipboard tarama
+        # Kontrol, downloads, clipboard tarama (gerçek kullanıcı Downloads klasörünü taramamak için home izole edilir)
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        (tmp_path / "Downloads").mkdir(exist_ok=True)
         st_k, _, raw_k = _http_call(f"{base}/api/kontrol", headers=hdr)
         assert st_k == 200 and json.loads(raw_k)["ok"] is True
         st_dl, _, raw_dl = _http_call(f"{base}/api/scan/downloads", method="POST", headers=hdr, body={})
@@ -625,7 +627,6 @@ def test_desktop_ui_error_paths_kontrol_and_quarantine_restore(monkeypatch, tmp_
         qpath = json.loads(raw_q)["record"]["quarantine_path"]
         assert Path(qpath).exists() and not sample.exists()
 
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
         st_res, _, raw_res = _http_call(
             f"{base}/api/quarantine/action",
             method="POST",

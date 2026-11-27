@@ -237,3 +237,11 @@ def test_extension_fallback_verifies_gov_and_known_org_urls():
     assert data["httpGov"]["verified"] is False
     assert data["ghExe"]["verified"] is False and data["ghExe"]["pts"] >= 20
     assert data["govSender"]["status"] == "VERIFIED_DOMAIN"
+
+
+def test_extension_native_bridge_disabled_by_default():
+    ext_dir = Path(__file__).resolve().parents[2] / "extension"
+    bg_js = (ext_dir / "background.js").read_text(encoding="utf-8")
+    opt_html = (ext_dir / "options.html").read_text(encoding="utf-8")
+    assert "nativeBridgeEnabled: false" in bg_js
+    assert 'id="optNativeBridge"' in opt_html

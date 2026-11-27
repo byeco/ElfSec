@@ -33,6 +33,7 @@ if ($LASTEXITCODE -ne 0) { throw "elfsec.ico üretilemedi" }
   --hidden-import app.privacy --hidden-import app.window_host --hidden-import webview `
   --hidden-import webview.platforms.winforms --hidden-import webview.platforms.edgechromium `
   --hidden-import app.verified_senders --hidden-import app.services.file_scanner `
+  --hidden-import app.services.local_ai --hidden-import app.services.pe_analyzer `
   --hidden-import app.watchers.file_watcher --hidden-import app.watchers.clipboard_guard `
   elfsec.py
 if ($LASTEXITCODE -ne 0) { throw "build başarısız (exit=$LASTEXITCODE)" }

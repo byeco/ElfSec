@@ -139,3 +139,75 @@ def test_scan_path_and_cli_exit_codes(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         scan_file_security(tmp_path / "olmayan.bin")
+
+
+def test_shortener_url_no_tcom_false_positive_and_exact_restore_allowlist(tmp_path, monkeypatch):
+    import json
+    import urllib.request
+    from pathlib import Path
+
+    from app import settings_store
+    from app.desktop_ui import DesktopPanelServer
+    from app.services.ai_analyzer import _check_url
+    from app.services.file_scanner import lookup_quarantine_record
+
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "pd"))
+    settings_store.set_explicit(None)
+
+    # "...t.com" uzantili normal alan adlari "t.co" kisalticisi sanilmamali!
+    assert _check_url("https://downloads.cloudflareclient.com/v1/download/windows/version/2026.8") == (0, None)
+    assert _check_url("http://ocsp.digicert.com") == (0, None)
+    assert _check_url("http://www.digicert.com\x00") == (0, None)
+    assert _check_url("https://t.co/xyz")[0] == 15
+    assert _check_url("https://bit.ly/xyz")[0] == 15
+
+    # İndirilen normal arşiv (.zip / .rar) yüksek risk alarmı üretmemeli
+    zip_dl = tmp_path / "capture.zip"
+    zip_dl.write_bytes(b"PK\x03\x04clean-capture")
+    rep_zip = scan_file_security(
+        zip_dl,
+        motw_override={
+            "zone_id": 3,
+            "host_url": "https://atolye.sibervatan.org/api/contents/assets/file-1.zip",
+            "referrer_url": "https://atolye.sibervatan.org/",
+        },
+    )
+    assert rep_zip["risk_level"] == "LOW"
+    assert rep_zip["risk_score"] < 25
+
+    # Orijinal konuma geri yukleme + SHA-256 izin listesi testi
+    orig_dir = tmp_path / "orig_downloads"
+    orig_dir.mkdir()
+    orig_file = orig_dir / "tool.ps1"
+    orig_file.write_text("powershell -w hidden -enc JAB4", encoding="utf-8")
+
+    qdir = tmp_path / "cfg" / "quarantine"
+    rep = scan_file_security(orig_file)
+    rec = quarantine_file(orig_file, quarantine_dir=qdir, report=rep)
+    qpath = Path(rec["quarantine_path"])
+    assert not orig_file.exists() and qpath.exists()
+    found = lookup_quarantine_record(qpath)
+    assert found and found["original_path"] == str(orig_file)
+
+    srv = DesktopPanelServer()
+    srv.start()
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{srv.port}/api/quarantine/action",
+            data=json.dumps({"action": "restore", "path": str(qpath)}).encode("utf-8"),
+            method="POST",
+            headers={"X-ElfSec-Token": srv.token, "Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+        assert res["ok"] is True
+        assert res["restored_to"] == str(orig_file)
+        assert orig_file.exists() and not qpath.exists()
+        # Tekrar taraninca SHA-256 izin listesinde oldugu icin 0 LOW donmeli
+        re_scan = scan_file_security(orig_file)
+        assert re_scan["risk_score"] == 0 and re_scan["risk_level"] == "LOW"
+    finally:
+        srv.stop()
+        settings_store.set_explicit(None)

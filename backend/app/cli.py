@@ -1428,6 +1428,63 @@ def cmd_game_mode(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai(args: argparse.Namespace) -> int:
+    """Yerel AI güvenlik motoru ve özel kelime koruması yönetimi."""
+    from app.services.local_ai import (
+        add_custom_keyword,
+        analyze_with_local_ai,
+        load_ai_settings,
+        remove_custom_keyword,
+        save_ai_settings,
+    )
+
+    op = getattr(args, "ai_action", "status")
+    try:
+        if op == "status":
+            st = load_ai_settings()
+        elif op == "enable":
+            st = save_ai_settings({"enabled": True})
+        elif op == "disable":
+            st = save_ai_settings({"enabled": False})
+        elif op == "add-word":
+            st = add_custom_keyword(getattr(args, "word", ""))
+        elif op == "remove-word":
+            st = remove_custom_keyword(getattr(args, "word", ""))
+        elif op == "analyze":
+            txt = str(getattr(args, "text", "") or "")
+            res = analyze_with_local_ai(txt)
+            if getattr(args, "json", False):
+                emit(res, args)
+            else:
+                print(
+                    f"AI Kategori: {res.get('category_tr')} | Skor: {res.get('semantic_score')}/100 "
+                    f"[{res.get('risk_level')}] | Güven: {int(float(res.get('confidence', 0)) * 100)}%"
+                )
+                print(f"Karar: {res.get('verdict_tr')}")
+                if res.get("keyword_hits"):
+                    print("Özel Kelimeler:", ", ".join(res["keyword_hits"]))
+                if res.get("sensitive_hits"):
+                    print("Hassas Veriler:", ", ".join(h["label"] for h in res["sensitive_hits"]))
+            return 0
+        else:
+            print(f"HATA: bilinmeyen AI işlemi: {op}", file=sys.stderr)
+            return 2
+    except ValueError as e:
+        print(f"HATA: {e}", file=sys.stderr)
+        return 2
+
+    if getattr(args, "json", False):
+        emit(st, args)
+    else:
+        durum = "AKTİF" if st.get("enabled") else "KAPALI"
+        kws = ", ".join(st.get("custom_keywords") or []) or "(yok)"
+        print(
+            f"Yerel AI: {durum} | Mod: {st.get('mode')} | Hassasiyet: {st.get('sensitivity')} | "
+            f"Oto-Koruma: {st.get('auto_quarantine_level')} | Özel Kelimeler: {kws}"
+        )
+    return 0
+
+
 # ---------- parser ----------
 
 def _add_common(p: argparse.ArgumentParser, with_fail: bool = False) -> None:
@@ -2149,6 +2206,33 @@ def build_parser() -> argparse.ArgumentParser:
     gm_rm.add_argument("--json", action="store_true")
     gm_rm.add_argument("--out", default="")
     gm_rm.set_defaults(func=cmd_game_mode)
+
+    ai_p = sub.add_parser("ai", help="Yerel AI güvenlik motoru ve özel kelime koruması")
+    ai_sub = ai_p.add_subparsers(dest="ai_action", required=True)
+    for act_name, act_help in (
+        ("status", "Yerel AI durumunu göster"),
+        ("enable", "Yerel AI güvenlik motorunu aç"),
+        ("disable", "Yerel AI güvenlik motorunu kapat"),
+    ):
+        sp = ai_sub.add_parser(act_name, help=act_help)
+        sp.add_argument("--json", action="store_true")
+        sp.add_argument("--out", default="")
+        sp.set_defaults(func=cmd_ai)
+    ai_aw = ai_sub.add_parser("add-word", help="Özel güvenlik kelimesi / verisi ekle")
+    ai_aw.add_argument("word")
+    ai_aw.add_argument("--json", action="store_true")
+    ai_aw.add_argument("--out", default="")
+    ai_aw.set_defaults(func=cmd_ai)
+    ai_rw = ai_sub.add_parser("remove-word", help="Özel güvenlik kelimesi çıkar")
+    ai_rw.add_argument("word")
+    ai_rw.add_argument("--json", action="store_true")
+    ai_rw.add_argument("--out", default="")
+    ai_rw.set_defaults(func=cmd_ai)
+    ai_an = ai_sub.add_parser("analyze", help="Metni yerel AI ile analiz et")
+    ai_an.add_argument("text")
+    ai_an.add_argument("--json", action="store_true")
+    ai_an.add_argument("--out", default="")
+    ai_an.set_defaults(func=cmd_ai)
     return p
 
 

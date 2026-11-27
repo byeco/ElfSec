@@ -115,6 +115,7 @@ def analyze_clipboard_text(
         "clickfix_detected": clickfix,
         "phishing_detected": phishing,
         "prompt_injection_detected": bool(rep.get("prompt_injection_detected")),
+        "ai_analysis": rep.get("ai_analysis") if not strict_kvkk else None,
         "preview": "[KVKK: Ham pano metni gizlendi]" if strict_kvkk else raw[:120],
         "recommended_action": (
             "Bu komutu Win+R/terminale YAPIŞTIRMAYIN ve şüpheli bağlantıyı açmayın!"

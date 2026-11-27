@@ -248,6 +248,56 @@ def test_cross_platform_file_scanner_and_cli_branches(monkeypatch, tmp_path):
     with pytest.raises(ValueError):
         restore_quarantined_file(not_q, tmp_path / "dest.txt")
 
+
+def test_autopilot_settings_bootstrap_and_state(monkeypatch, tmp_path):
+    from app import settings_store, win_plugin
+    from app.desktop_ui import DesktopPanelServer
+    from app.services.local_ai import load_ai_settings
+
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "pd"))
+    settings_store.set_explicit(None)
+
+    try:
+        assert load_ai_settings()["autopilot"] is True
+        reg_calls: list[dict] = []
+        agent_calls: list[str] = []
+        monkeypatch.setattr(win_plugin, "_apply_registry_entries", lambda entries: reg_calls.append({"entries": entries}))
+        monkeypatch.setattr(win_plugin, "register_browser_hosts", lambda **kw: reg_calls.append(kw) or {"ok": True, "browser": {"chrome": True, "edge": True}})
+        monkeypatch.setattr(win_plugin, "_launch_agent_detached", lambda exe: agent_calls.append(exe) or True)
+        monkeypatch.setattr(win_plugin, "browser_status", lambda: {"chrome": True, "edge": True, "brave": False, "firefox": False})
+        monkeypatch.setattr(win_plugin, "_is_agent_already_running", lambda: False)
+
+        # Varsayılan çağrı ve DesktopPanelServer(autopilot=True) kayıt defterine yazmamalı ve ajan başlatmamalı
+        ap_noop = win_plugin.ensure_autopilot_system_ready()
+        assert ap_noop["bootstrapped_at"]
+        assert reg_calls == []
+        assert agent_calls == []
+
+        srv = DesktopPanelServer(autopilot=True)
+        srv.start()
+        try:
+            st = srv._build_status()
+            assert "autopilot" in st
+            assert st["autopilot"]["enabled"] is True
+            assert st["autopilot"]["agent_running"] is False
+            assert reg_calls == []
+            assert agent_calls == []
+        finally:
+            srv.stop()
+
+        # Açıkça register_system=True verildiğinde sistem entegrasyonu çalışmalı
+        ap = win_plugin.ensure_autopilot_system_ready(start_agent=False, register_system=True)
+        assert ap["bootstrapped_at"]
+        if os.name == "nt":
+            assert ap["system_integrated"] is True
+            assert ap["browser_count"] == 2
+            assert len(reg_calls) == 1
+        assert win_plugin.autopilot_state_path().exists()
+    finally:
+        settings_store.set_explicit(None)
+
     # Mocked browser/plugin/service CLI branches (Windows + Linux)
     monkeypatch.setattr(win_plugin, "register_browser_hosts", lambda **kw: {"ok": True, "scope": "HKCU", "chromium_manifest": "x.json"})
     monkeypatch.setattr(win_plugin, "unregister_browser_hosts", lambda **kw: {"ok": True, "removed": True})

@@ -14,6 +14,7 @@ import json
 import os
 import re
 import struct
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -130,11 +131,25 @@ def handle_native_request(req: dict, alert_log: str = "", log_alerts: bool = Tru
     action = str((req or {}).get("action", "") or "").strip().lower()
 
     if action == "ping":
+        ai_on = True
+        exe_deep = True
+        try:
+            from app.services.local_ai import load_ai_settings
+
+            cfg = load_ai_settings()
+            ai_on = bool(cfg.get("enabled", True))
+            exe_deep = bool(cfg.get("exe_deep_scan", True))
+        except Exception:
+            pass
         return {
             "ok": True,
             "version": __version__,
             "engine": ENGINE,
             "mode": "native-host",
+            "ai_enabled": ai_on,
+            "exe_deep_scan": exe_deep,
+            "auto_protect": False,
+            "auto_quarantine_level": "OFF",
         }
 
     if action == "analyze_email":
@@ -189,12 +204,15 @@ def handle_native_request(req: dict, alert_log: str = "", log_alerts: bool = Tru
     if action in ("analyze_url", "analyze_text"):
         text = str(req.get("text") or req.get("url") or "")[:10000]
         rep = analyze_clipboard_text(text)
-        return {
+        out = {
             **rep,
             "ok": True,
             "source": "browser_web",
             "version": __version__,
         }
+        if log_alerts:
+            _append_webmail_alert(out, alert_log=alert_log)
+        return out
 
     if action == "scan_file":
         fpath = str(req.get("path", "") or "").strip()
@@ -219,16 +237,31 @@ def handle_native_request(req: dict, alert_log: str = "", log_alerts: bool = Tru
         if not p.exists() or not p.is_file():
             return {"ok": False, "error": f"Dosya bulunamadı: {fpath}"}
         from app.services.file_scanner import scan_file_security
+        from app.services.local_ai import load_ai_settings
 
         rep = scan_file_security(p)
         out = {
             **rep,
             "ok": True,
             "source": "browser_download",
+            "auto_protected": False,
             "version": __version__,
         }
+        ai_cfg = load_ai_settings()
         if log_alerts:
             _append_webmail_alert(out, alert_log=alert_log)
+            if (
+                bool(req.get("notify", True))
+                and os.environ.get("ELFSEC_NO_TOAST") != "1"
+                and ai_cfg.get("notify_on_ai_alert", True)
+                and str(out.get("risk_level", "LOW")).upper() in ("HIGH", "CRITICAL")
+            ):
+                try:
+                    from app.notify import notify_file_alarm
+
+                    notify_file_alarm(out)
+                except Exception:
+                    pass
         return out
 
     return {"ok": False, "error": f"Bilinmeyen istek: {action or '(boş)'}"}
@@ -298,6 +331,94 @@ def build_firefox_manifest(host_path: str) -> dict:
         "type": "stdio",
         "allowed_extensions": [FIREFOX_EXTENSION_ID],
     }
+
+
+def discover_installed_extension_ids(existing_manifest: Path | None = None) -> list[str]:
+    """Mevcut manifest ve yüklü Chrome/Edge/Brave profillerinden ElfSec uzantı ID'lerini toplar."""
+    ids: list[str] = [DEFAULT_EXTENSION_ID]
+    seen: set[str] = {DEFAULT_EXTENSION_ID}
+
+    def _add(cand: str) -> None:
+        c = str(cand or "").strip().lower()
+        if CHROMIUM_EXT_ID_RE.match(c) and c not in seen:
+            seen.add(c)
+            ids.append(c)
+
+    if existing_manifest is not None and existing_manifest.exists():
+        try:
+            mf = json.loads(existing_manifest.read_text(encoding="utf-8"))
+            for orig in mf.get("allowed_origins") or []:
+                m = re.match(r"^chrome-extension://([a-p]{32})/?$", str(orig).strip(), re.IGNORECASE)
+                if m:
+                    _add(m.group(1))
+        except Exception:
+            pass
+
+    if os.name == "nt":
+        local_app = os.environ.get("LOCALAPPDATA", "")
+        if local_app:
+            ud_roots = (
+                Path(local_app) / "Google" / "Chrome" / "User Data",
+                Path(local_app) / "Microsoft" / "Edge" / "User Data",
+                Path(local_app) / "BraveSoftware" / "Brave-Browser" / "User Data",
+            )
+            for root in ud_roots:
+                if not root.exists():
+                    continue
+                try:
+                    prof_dirs = [p for p in root.iterdir() if p.is_dir() and (p.name == "Default" or p.name.startswith("Profile "))]
+                except OSError:
+                    continue
+                for prof in prof_dirs[:10]:
+                    for pref_name in ("Preferences", "Secure Preferences"):
+                        pf = prof / pref_name
+                        try:
+                            if not pf.is_file() or pf.stat().st_size > 10_485_760:
+                                continue
+                            pdata = json.loads(pf.read_text(encoding="utf-8", errors="replace"))
+                            ext_settings = ((pdata.get("extensions") or {}).get("settings") or {})
+                            if not isinstance(ext_settings, dict):
+                                continue
+                            for eid, meta in ext_settings.items():
+                                if not isinstance(meta, dict):
+                                    continue
+                                ep = str(meta.get("path") or "").lower()
+                                mname = str(((meta.get("manifest") or {}).get("name")) or "").lower()
+                                if "elfsec" in ep or "elfsec" in mname:
+                                    _add(eid)
+                        except Exception:
+                            continue
+    return ids
+
+
+def test_native_host_wrapper(wrapper_path: Path, timeout: float = 8.0) -> dict:
+    """Native Messaging wrapper (.cmd) üzerinden canlı stdio ping testi yapar."""
+    wp = Path(wrapper_path)
+    if not wp.exists() or not wp.is_file():
+        return {"ok": False, "error": f"Native host wrapper bulunamadı: {wp}"}
+    try:
+        payload = json.dumps({"action": "ping"}, ensure_ascii=False).encode("utf-8")
+        frame = struct.pack("<I", len(payload)) + payload
+        cmd = ["cmd.exe", "/c", str(wp)] if os.name == "nt" else [str(wp)]
+        flags = 0x08000000 if os.name == "nt" else 0
+        proc = subprocess.run(
+            cmd,
+            input=frame,
+            capture_output=True,
+            timeout=timeout,
+            creationflags=flags,
+        )
+        out = proc.stdout or b""
+        if len(out) < 4:
+            err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
+            return {"ok": False, "error": err or f"Geçersiz yanıt (exit={proc.returncode})"}
+        (length,) = struct.unpack("<I", out[:4])
+        if length == 0 or len(out) < 4 + length:
+            return {"ok": False, "error": "Eksik Native Messaging yanıt çerçevesi."}
+        resp = json.loads(out[4 : 4 + length].decode("utf-8", errors="replace"))
+        return {"ok": bool(isinstance(resp, dict) and resp.get("ok")), "response": resp}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def write_native_host_files(

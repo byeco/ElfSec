@@ -35,6 +35,9 @@
   "statusFallback": {
     "message": "Fallback Mode"
   },
+  "statusBrowserOnly": {
+    "message": "Browser Mode"
+  },
   "statusOffline": {
     "message": "Disconnected"
   },
@@ -325,6 +328,27 @@
   },
   "nativeFallbackChip": {
     "message": "Browser Fallback"
+  },
+  "nativeBridgeToggleTitle": {
+    "message": "Enable Desktop Native Host bridge (optional)"
+  },
+  "nativeBridgeToggleDesc": {
+    "message": "Disabled by default for 100% in-browser protection. Even when enabled, downloaded files are never auto-quarantined."
+  },
+  "nativeDisabledTitle": {
+    "message": "In-browser protection only"
+  },
+  "nativeDisabledDetail": {
+    "message": "Desktop Native Host bridge is off by default. Enable the toggle above only if you want optional deep scanning."
+  },
+  "nativeBrowserOnlyChip": {
+    "message": "In-Browser"
+  },
+  "toastNativeBridgeOn": {
+    "message": "Desktop Native Host bridge enabled"
+  },
+  "toastNativeBridgeOff": {
+    "message": "Desktop Native Host bridge disabled — browser mode active"
   },
   "extIdLabel": {
     "message": "Extension ID:"

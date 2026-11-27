@@ -69,8 +69,8 @@ def _apply_win32_window_chrome(hwnd: int, ico_path: Path | None) -> None:
             wintypes.HWND(hwnd), 33, ctypes.byref(corner), ctypes.sizeof(corner)
         )
 
-        # DWMWA_BORDER_COLOR (34) — koyu slate çerçeve (COLORREF 0x00BBGGRR -> #182433)
-        border_color = ctypes.c_uint32(0x00332418)
+        # DWMWA_BORDER_COLOR (34) — nötr grafit çerçeve (COLORREF 0x00BBGGRR -> #24272b)
+        border_color = ctypes.c_uint32(0x002B2724)
         dwmapi.DwmSetWindowAttribute(
             wintypes.HWND(hwnd), 34, ctypes.byref(border_color), ctypes.sizeof(border_color)
         )
@@ -269,7 +269,7 @@ def _move_window_to(hwnd: int, x: int, y: int) -> bool:
 
 
 def _start_win32_drag(hwnd: int, native_form: Any = None) -> bool:
-    """Win32 ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION) ile yerel pencere taşımayı başlatır."""
+    """Win32 ReleaseCapture + WM_SYSCOMMAND(SC_DRAGMOVE) ile yerel pencere taşımayı başlatır."""
     if os.name != "nt" or not hwnd:
         return False
     try:
@@ -294,12 +294,14 @@ def _start_win32_drag(hwnd: int, native_form: Any = None) -> bool:
         ]
         user32.PostMessageW.restype = wintypes.BOOL
 
-        WM_NCLBUTTONDOWN = 0x00A1
-        HTCAPTION = 2
+        WM_SYSCOMMAND = 0x0112
+        SC_DRAGMOVE = 0xF012
+        cur = _get_cursor_pos()
+        lparam = (((cur[1] & 0xFFFF) << 16) | (cur[0] & 0xFFFF)) if cur else 0
 
         def _do_drag() -> None:
             user32.ReleaseCapture()
-            user32.SendMessageW(wintypes.HWND(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
+            user32.SendMessageW(wintypes.HWND(hwnd), WM_SYSCOMMAND, SC_DRAGMOVE, lparam)
 
         begin_invoke = getattr(native_form, "BeginInvoke", None) if native_form is not None else None
         if callable(begin_invoke):
@@ -312,9 +314,87 @@ def _start_win32_drag(hwnd: int, native_form: Any = None) -> bool:
                 pass
 
         user32.ReleaseCapture()
-        return bool(user32.PostMessageW(wintypes.HWND(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0))
+        return bool(user32.PostMessageW(wintypes.HWND(hwnd), WM_SYSCOMMAND, SC_DRAGMOVE, lparam))
     except Exception:
         return False
+
+
+_SC_SIZE_EDGES = {
+    "w": 0xF001,
+    "e": 0xF002,
+    "n": 0xF003,
+    "nw": 0xF004,
+    "ne": 0xF005,
+    "s": 0xF006,
+    "sw": 0xF007,
+    "se": 0xF008,
+}
+
+
+def _start_win32_resize(hwnd: int, edge: str, native_form: Any = None) -> bool:
+    """Win32 ReleaseCapture + WM_SYSCOMMAND(SC_SIZE + edge) ile 8 yönlü yerel boyutlandırma başlatır."""
+    if os.name != "nt" or not hwnd:
+        return False
+    sc_cmd = _SC_SIZE_EDGES.get(str(edge or "").strip().lower())
+    if not sc_cmd:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        user32.ReleaseCapture.argtypes = []
+        user32.ReleaseCapture.restype = wintypes.BOOL
+        user32.SendMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.SendMessageW.restype = ctypes.c_ssize_t
+        user32.PostMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.PostMessageW.restype = wintypes.BOOL
+
+        WM_SYSCOMMAND = 0x0112
+        cur = _get_cursor_pos()
+        lparam = (((cur[1] & 0xFFFF) << 16) | (cur[0] & 0xFFFF)) if cur else 0
+
+        def _do_resize() -> None:
+            user32.ReleaseCapture()
+            user32.SendMessageW(wintypes.HWND(hwnd), WM_SYSCOMMAND, sc_cmd, lparam)
+
+        begin_invoke = getattr(native_form, "BeginInvoke", None) if native_form is not None else None
+        if callable(begin_invoke):
+            try:
+                from System import Action
+
+                begin_invoke(Action(_do_resize))
+                return True
+            except Exception:
+                pass
+
+        user32.ReleaseCapture()
+        return bool(user32.PostMessageW(wintypes.HWND(hwnd), WM_SYSCOMMAND, sc_cmd, lparam))
+    except Exception:
+        return False
+
+
+def _enable_webview2_nonclient(window: Any) -> None:
+    """WebView2 üzerinde app-region / drag non-client bölge desteğini güvenli biçimde açar."""
+    try:
+        native = getattr(window, "native", None)
+        webview_ctrl = getattr(native, "webview", None) if native is not None else None
+        core = getattr(webview_ctrl, "CoreWebView2", None) if webview_ctrl is not None else None
+        settings = getattr(core, "Settings", None) if core is not None else None
+        if settings is not None and hasattr(settings, "IsNonClientRegionSupportEnabled"):
+            settings.IsNonClientRegionSupportEnabled = True
+    except Exception:
+        pass
 
 
 class NativeWindowController:
@@ -433,6 +513,17 @@ class NativeWindowController:
         started = _start_win32_drag(hwnd, native_form)
         return {"started": bool(started), **self.get_state()}
 
+    def begin_resize(self, edge: str) -> dict:
+        """Pencere kenarından veya köşesinden yerel 8 yönlü boyutlandırmayı başlatır."""
+        if self.is_maximized():
+            return {"started": False, **self.get_state()}
+        hwnd = self._get_hwnd() if os.name == "nt" else None
+        if not hwnd:
+            return {"started": False, **self.get_state()}
+        native_form = getattr(self._window, "native", None)
+        started = _start_win32_resize(hwnd, edge, native_form)
+        return {"started": bool(started), **self.get_state()}
+
     def move_by(self, dx: int, dy: int) -> dict:
         """Yedek taşıma: pencereyi verilen piksel farkı kadar kaydırır."""
         hwnd = self._get_hwnd() if os.name == "nt" else None
@@ -458,6 +549,32 @@ class NativeWindowController:
         hwnd = self._get_hwnd()
         if hwnd:
             _apply_win32_window_chrome(hwnd, _find_elfsec_ico())
+        _enable_webview2_nonclient(self._window)
+
+
+class _WindowJsApi:
+    """pywebview JavaScript <-> NativeWindowController doğrudan IPC köprüsü."""
+
+    def __init__(self) -> None:
+        self.controller: NativeWindowController | None = None
+
+    def start_drag(self) -> dict:
+        return self.controller.begin_drag() if self.controller is not None else {"started": False, "native": False}
+
+    def start_resize(self, edge: str = "se") -> dict:
+        return self.controller.begin_resize(edge) if self.controller is not None else {"started": False, "native": False}
+
+    def toggle_maximize(self) -> dict:
+        return self.controller.toggle_maximize() if self.controller is not None else {"native": False}
+
+    def minimize(self) -> dict:
+        return self.controller.minimize() if self.controller is not None else {"native": False}
+
+    def toggle_pin(self) -> dict:
+        return self.controller.toggle_pin() if self.controller is not None else {"native": False}
+
+    def close(self) -> dict:
+        return self.controller.close() if self.controller is not None else {"closed": False}
 
 
 def launch_native_window(
@@ -479,6 +596,7 @@ def launch_native_window(
         return False
 
     try:
+        js_api = _WindowJsApi()
         win = webview.create_window(
             title=title,
             url=server.url,
@@ -488,18 +606,24 @@ def launch_native_window(
             resizable=True,
             frameless=True,
             easy_drag=False,
-            background_color="#070b14",
+            background_color="#0b0c0e",
+            js_api=js_api,
         )
         ctrl = NativeWindowController(win, on_close_cb=server.stop_event.set)
+        js_api.controller = ctrl
         server.window_controller = ctrl
 
         def _on_shown() -> None:
             ctrl.apply_chrome()
 
+        def _on_loaded() -> None:
+            _enable_webview2_nonclient(win)
+
         def _on_closed() -> None:
             server.stop_event.set()
 
         win.events.shown += _on_shown
+        win.events.loaded += _on_loaded
         win.events.closed += _on_closed
 
         webview.start(

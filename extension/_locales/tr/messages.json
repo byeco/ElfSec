@@ -35,6 +35,9 @@
   "statusFallback": {
     "message": "Yedek Mod"
   },
+  "statusBrowserOnly": {
+    "message": "Tarayıcı Modu"
+  },
   "statusOffline": {
     "message": "Bağlantı yok"
   },
@@ -325,6 +328,27 @@
   },
   "nativeFallbackChip": {
     "message": "Tarayıcı Yedek"
+  },
+  "nativeBridgeToggleTitle": {
+    "message": "Masaüstü Native Host köprüsünü etkinleştir (isteğe bağlı)"
+  },
+  "nativeBridgeToggleDesc": {
+    "message": "Varsayılan kapalıdır; kapalıyken %100 tarayıcı içi çalışır. Açıkken bile indirilen dosyaları otomatik karantinaya almaz."
+  },
+  "nativeDisabledTitle": {
+    "message": "Yalnızca tarayıcı içi koruma aktif"
+  },
+  "nativeDisabledDetail": {
+    "message": "Masaüstü Native Host köprüsü kapalı (varsayılan). İsteğe bağlı derin tarama için yukarıdaki anahtardan açabilirsiniz."
+  },
+  "nativeBrowserOnlyChip": {
+    "message": "Tarayıcı İçi"
+  },
+  "toastNativeBridgeOn": {
+    "message": "Masaüstü Native Host köprüsü açıldı"
+  },
+  "toastNativeBridgeOff": {
+    "message": "Masaüstü Native Host köprüsü kapatıldı — tarayıcı modu aktif"
   },
   "extIdLabel": {
     "message": "Uzantı Kimliği:"

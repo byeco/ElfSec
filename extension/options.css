@@ -8,26 +8,17 @@ body {
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
-  background:
-    radial-gradient(960px 440px at 14% -8%, rgba(16, 185, 129, 0.08), transparent 62%),
-    radial-gradient(760px 380px at 92% 4%, rgba(5, 150, 105, 0.06), transparent 60%),
-    var(--bg);
+  background: var(--bg);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) body {
-    background:
-      radial-gradient(960px 460px at 14% -8%, rgba(52, 211, 153, 0.11), transparent 62%),
-      radial-gradient(760px 380px at 92% 4%, rgba(16, 185, 129, 0.08), transparent 60%),
-      var(--bg);
+    background: var(--bg);
   }
 }
 
 :root[data-theme="dark"] body {
-  background:
-    radial-gradient(960px 460px at 14% -8%, rgba(52, 211, 153, 0.11), transparent 62%),
-    radial-gradient(760px 380px at 92% 4%, rgba(16, 185, 129, 0.08), transparent 60%),
-    var(--bg);
+  background: var(--bg);
 }
 
 .layout {
@@ -46,9 +37,9 @@ body {
   top: 24px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: var(--shadow-md);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .side-brand {
@@ -60,15 +51,14 @@ body {
 }
 
 .side-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, var(--brand-soft), var(--surface-2));
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  box-shadow: 0 4px 12px var(--brand-glow);
 }
 
 .side-brand h1 {

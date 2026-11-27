@@ -130,9 +130,8 @@ def _run_win32_tray(
         IDI_SHIELD = 32518
         IDI_APPLICATION = 32512
 
-        ID_SCAN_CLIP = 1001
         ID_SCAN_DL = 1002
-        ID_TOGGLE_CLIP = 1003
+        ID_TOGGLE_AI = 1003
         ID_STATUS = 1004
         ID_DASHBOARD = 1005
         ID_TOGGLE_GAMEMODE = 1006
@@ -229,9 +228,8 @@ def _run_win32_tray(
             try:
                 user32.AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, "ElfSec Güvenlik Eklentisi")
                 user32.AppendMenuW(menu, MF_SEPARATOR, 0, None)
-                user32.AppendMenuW(menu, MF_STRING, ID_SCAN_CLIP, "Panoyu Şimdi Tara")
                 user32.AppendMenuW(menu, MF_STRING, ID_SCAN_DL, "İndirilenleri Şimdi Tara")
-                user32.AppendMenuW(menu, MF_STRING, ID_TOGGLE_CLIP, "Pano Koruması (Aç/Kapat)")
+                user32.AppendMenuW(menu, MF_STRING, ID_TOGGLE_AI, "Yerel AI Koruması (Aç/Kapat)")
                 user32.AppendMenuW(menu, MF_STRING, ID_TOGGLE_GAMEMODE, "Oyun Modu (Oto/Açık/Kapalı)")
                 user32.AppendMenuW(menu, MF_STRING, ID_STATUS, "Servis & Eklenti Durumu")
                 user32.AppendMenuW(menu, MF_STRING, ID_DASHBOARD, "Güvenlik Panelini Aç")
@@ -256,12 +254,10 @@ def _run_win32_tray(
                     return 0
             elif msg == WM_COMMAND:
                 cmd_id = wparam & 0xFFFF
-                if cmd_id == ID_SCAN_CLIP:
-                    _invoke("scan_clipboard")
-                elif cmd_id == ID_SCAN_DL:
+                if cmd_id == ID_SCAN_DL:
                     _invoke("scan_downloads")
-                elif cmd_id == ID_TOGGLE_CLIP:
-                    _invoke("toggle_clipboard")
+                elif cmd_id == ID_TOGGLE_AI:
+                    _invoke("toggle_ai")
                 elif cmd_id == ID_TOGGLE_GAMEMODE:
                     _invoke("toggle_game_mode")
                 elif cmd_id == ID_STATUS:

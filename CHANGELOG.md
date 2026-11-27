@@ -1,6 +1,17 @@
 # CHANGELOG
 
-## Yayınlanmamış — Uzantı Tamamlama & Profesyonel Tasarım Yenilemesi
+## v1.7.0 — Yerel AI Motoru, Güvenli Varsayılanlar & İsteğe Bağlı Native Host
+
+- **Güvenli Masaüstü Varsayılanları (`desktop_ui.py`, `win_plugin.py`, `local_ai.py`, `file_watcher.py`):**
+  - Masaüstü paneli açıldığında artık kayıt defterine (`HKCU\...\Run`, sağ-tık, Native Host) otomatik yazım ve izinsiz arka plan `agent --tray` başlatımı yapılmaz; sistem entegrasyonu yalnızca `ElfSecSetup.exe` veya `elfsec plugin install` ile kurulur.
+  - Otomatik karantina (`auto_protect`, `auto_quarantine_level: "OFF"`) varsayılan olarak kapalıdır; kullanıcı ayarlardan açıkça etkinleştirmediği sürece dosyalar taşınmaz, yalnızca uyarılır.
+- **%100 Tarayıcı İçi Varsayılan & Salt-Okunur Native Host (`extension/`, `native_host.py`):**
+  - Tarayıcı uzantısı varsayılan olarak tamamen tarayıcı içinde çalışır (`nativeBridgeEnabled: false`); masaüstü Native Host köprüsü Ayarlar sayfasından isteğe bağlı (opt-in) olarak açılabilir.
+  - Native Host `scan_file` uç noktası tamamen salt-okunurdur; tarayıcı indirmelerinde asla otomatik karantina uygulamaz.
+- **Yerel AI & Derin PE/EXE Analizi (`app/services/local_ai.py`, `app/services/pe_analyzer.py`, `desktop_ui.py`):**
+  - %100 çevrimdışı semantik sosyal mühendislik, hassas veri (DLP: TCKN/IBAN/kart/API anahtarı), özel kelime ve PE entropi/API/imza analizi + isteğe bağlı loopback Yerel LLM desteği.
+  - Resmi doğrulanmış göndericilerde (`VERIFIED_STRONG`) temiz sinyaller için yanlış-pozitif koruması ve izole çerçevesiz masaüstü pencere iyileştirmeleri.
+- **Uzantı Tamamlama & Profesyonel Tasarım Yenilemesi:**
 
 - **Profesyonel İkon Seti (`extension/icons/`, `manifest.json`):** 16x16, 32x32, 48x48 ve 128x128 boyutlarında 4x supersampling anti-aliased şeffaf kalkan ikonları üretildi; manifest 32px ikonu da içerecek şekilde güncellendi.
 - **Ortak Tasarım Sistemi & Tam TR/EN Yerelleştirme (`extension/shared.css`, `extension/i18n.js`, `_locales/`):** Sistem / Koyu / Açık tema seçimi (`data-theme` + `prefers-color-scheme`) ve tüm arayüz metinleri için eksiksiz TR/EN yerelleştirme anahtarları eklendi.

@@ -138,3 +138,91 @@ def test_mail_app_dirs_and_kontrol_win():
     by_id = {b["id"]: b for b in r["bulgular"]}
     assert by_id["WIN-09"]["durum"] == "PASS"
     assert by_id["WIN-10"]["durum"] == "PASS"
+
+
+def test_discover_extension_ids_preserves_existing_manifest(tmp_path):
+    from app.native_host import discover_installed_extension_ids, write_native_host_files
+
+    custom_id = "miockdlgjjkjkmphpicmjahakecoemoj"
+    files = write_native_host_files(tmp_path, r"C:\Program Files\ElfSec\elfsec.exe", extension_ids=[custom_id])
+    ids = discover_installed_extension_ids(existing_manifest=Path(files["chromium_manifest"]))
+    assert DEFAULT_EXTENSION_ID in ids
+    assert custom_id in ids
+
+
+def test_native_host_scan_file_auto_quarantine_and_url_alert_logging(monkeypatch, tmp_path):
+    from app import settings_store
+    from app.services.local_ai import save_ai_settings
+
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "pd"))
+    monkeypatch.setenv("ELFSEC_NO_TOAST", "1")
+    settings_store.set_explicit(None)
+
+    try:
+        alert_log = tmp_path / "cfg" / "guard_alerts.jsonl"
+        dl = tmp_path / "Downloads"
+        dl.mkdir()
+        evil_ps1 = dl / "evil.pdf.exe"
+        evil_ps1.write_bytes(b"MZ")
+
+        url_rep = handle_native_request(
+            {"action": "analyze_url", "text": "powershell -w hidden -enc JAB4"},
+            alert_log=str(alert_log),
+        )
+        assert url_rep["ok"] is True and url_rep["risk_score"] >= 40
+
+        # Native host scan_file hiçbir koşulda (auto_protect açık olsa bile) dosyayı karantinaya taşımamalı
+        save_ai_settings({"auto_protect": True, "auto_quarantine_level": "CRITICAL"})
+        bad_script = dl / "payload.ps1"
+        bad_script.write_text("powershell -w hidden -enc JAB4\nAdd-MpPreference -ExclusionPath C:\\", encoding="utf-8")
+        rep = handle_native_request(
+            {"action": "scan_file", "path": str(bad_script), "auto_protect": True},
+            alert_log=str(alert_log),
+        )
+        assert rep["ok"] is True
+        assert rep["risk_level"] == "CRITICAL"
+        assert rep.get("auto_protected") is False
+        assert bad_script.exists()
+        assert alert_log.exists() and "payload.ps1" in alert_log.read_text(encoding="utf-8")
+    finally:
+        settings_store.set_explicit(None)
+
+
+def test_desktop_ui_collect_alerts_and_browser_test_endpoint(monkeypatch, tmp_path):
+    from app import settings_store
+    from app.desktop_ui import DesktopPanelServer, _collect_alerts
+
+    monkeypatch.setenv("ELFSEC_CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    monkeypatch.setenv("PROGRAMDATA", str(tmp_path / "pd"))
+    settings_store.set_explicit(None)
+
+    try:
+        user_log = tmp_path / "cfg" / "guard_alerts.jsonl"
+        user_log.parent.mkdir(parents=True, exist_ok=True)
+        user_log.write_text(json.dumps({"subject": "Tarayıcı Test", "risk_score": 80, "risk_level": "HIGH"}) + "\n", encoding="utf-8")
+        alerts = _collect_alerts()
+        assert any(a.get("subject") == "Tarayıcı Test" for a in alerts)
+
+        import urllib.request
+
+        srv = DesktopPanelServer()
+        srv.start()
+        try:
+            base = f"http://127.0.0.1:{srv.port}"
+            req = urllib.request.Request(
+                f"{base}/api/browser/test",
+                data=b"{}",
+                method="POST",
+                headers={"X-ElfSec-Token": srv.token, "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            assert data["ok"] is True
+            assert "self_test" in data and "bridge" in data
+        finally:
+            srv.stop()
+    finally:
+        settings_store.set_explicit(None)

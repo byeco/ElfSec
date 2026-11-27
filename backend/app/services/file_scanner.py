@@ -104,9 +104,9 @@ def parse_motw_text(text: str) -> dict:
             except ValueError:
                 pass
         elif kl == "referrerurl":
-            out["referrer_url"] = val[:500]
+            out["referrer_url"] = val.replace("\x00", "").strip()[:500]
         elif kl == "hosturl":
-            out["host_url"] = val[:500]
+            out["host_url"] = val.replace("\x00", "").strip()[:500]
     return out
 
 
@@ -250,12 +250,45 @@ def scan_file_security(
     name = p.name
     ext = p.suffix.lower()
     size = p.stat().st_size
+    file_sha = sha256_file(p)
+
+    # Kullanıcı tarafından daha önce geri yüklenerek güvenilen dosyalar (SHA-256 izin listesi)
+    try:
+        from app.services.local_ai import load_ai_settings
+
+        if file_sha and file_sha.lower() in (load_ai_settings().get("trusted_hashes") or []):
+            return {
+                "source": "file_scan",
+                "file": str(p),
+                "filename": name,
+                "subject": name,
+                "size": size,
+                "sha256": file_sha,
+                "motw": motw_override if motw_override is not None else read_motw(p),
+                "risk_score": 0,
+                "risk_level": "LOW",
+                "summary": "Kullanıcı izin listesindeki güvenilir dosya (0/100).",
+                "reasons": ["Kullanıcı tarafından güvenilen / geri yüklenen dosya (SHA-256 izin listesinde)."],
+                "suspicious_urls": [],
+                "phishing_detected": False,
+                "prompt_injection_detected": False,
+                "ai_analysis": None,
+                "pe_analysis": None,
+                "tracking_pixels_blocked": 0,
+                "recommended_action": "Güvenilen dosya olarak işaretlendi.",
+                "engine": ENGINE,
+                "analyzed_at": datetime.now(timezone.utc),
+            }
+    except Exception:
+        pass
 
     score = 0
     reasons: list[str] = []
     sus_urls: list[str] = []
     phishing_detected = False
     prompt_injection_detected = False
+    ai_analysis: dict | None = None
+    pe_analysis: dict | None = None
 
     # 1) Unicode RLO (sağdan-sola karakter ile uzantı gizleme)
     if any(ch in name for ch in RLO_CHARS):
@@ -282,18 +315,38 @@ def scan_file_security(
     # 4) Mark-of-the-Web (Zone.Identifier)
     motw = motw_override if motw_override is not None else read_motw(p)
     zone_id = motw.get("zone_id") if isinstance(motw, dict) else None
+    is_double_ext = any("Çift uzantı" in r for r in att_reasons)
     if zone_id in (3, 4):
-        if ext in EXEC_EXT or ext in SCRIPT_EXT or ext in MACRO_EXT or att_score > 0 or is_pe:
+        if ext in EXEC_EXT or ext in SCRIPT_EXT or ext in MACRO_EXT or is_double_ext or is_pe:
             score = _add_score(score, reasons, R, "file_motw", 15,
                                f"İnternetten indirilmiş çalıştırılabilir/riskli dosya (ZoneId={zone_id}).")
         for murl in (motw.get("host_url", ""), motw.get("referrer_url", "")):
             if murl:
-                pts, why = _check_url(murl, R)
+                pts, why = _check_url(murl, R, check_ext=False)
                 if pts and murl not in sus_urls:
                     score += pts
                     sus_urls.append(murl)
                     if why:
                         reasons.append(f"İndirme kaynağı şüpheli: {why}")
+
+    # 4.5) Çalıştırılabilir PE / .EXE derin statik ve yerel Defender analizi
+    if (is_pe or ext in EXEC_EXT) and ext not in EMAIL_EXT and ext not in HTML_EXT:
+        try:
+            from app.services.local_ai import load_ai_settings
+            from app.services.pe_analyzer import analyze_pe_file
+
+            ai_cfg = load_ai_settings()
+            if ai_cfg.get("exe_deep_scan", True):
+                pe_analysis = analyze_pe_file(p, R, motw=motw, ai_settings=ai_cfg)
+                score += int(pe_analysis.get("score_delta") or 0)
+                for r in pe_analysis.get("reasons") or []:
+                    if r and r not in reasons:
+                        reasons.append(r)
+                for u in pe_analysis.get("suspicious_urls") or []:
+                    if u and u not in sus_urls:
+                        sus_urls.append(u)
+        except Exception:
+            pe_analysis = None
 
     # 5) İçerik türüne göre derin tarama
     if ext == ".eml":
@@ -313,6 +366,7 @@ def scan_file_security(
                 sus_urls.append(u)
         phishing_detected = bool(rep.get("phishing_detected"))
         prompt_injection_detected = bool(rep.get("prompt_injection_detected"))
+        ai_analysis = rep.get("ai_analysis")
     elif ext in HTML_EXT:
         text = head_bytes.decode("utf-8", errors="replace")
         clean = sanitize_email(text)
@@ -327,6 +381,7 @@ def scan_file_security(
                 sus_urls.append(u)
         phishing_detected = bool(rep.get("phishing_detected"))
         prompt_injection_detected = bool(rep.get("prompt_injection_detected"))
+        ai_analysis = rep.get("ai_analysis")
         if re.search(r"<input[^>]+type=[\"']?password", text, re.IGNORECASE) and re.search(
                 r"<form|action=", text, re.IGNORECASE):
             score = _add_score(score, reasons, R, "phishing_pattern", 25,
@@ -336,7 +391,10 @@ def scan_file_security(
         extracted = "\n".join(inspect_lnk_bytes(head_bytes))
         if extracted:
             score = _check_script_text(extracted, R, score, reasons, sus_urls)
-    elif ext in SCRIPT_EXT or (ext in (".txt", ".log", ".url", ".csv") and not is_pe):
+    elif ext in SCRIPT_EXT or (
+        ext in (".txt", ".log", ".url", ".csv", ".env", ".json", ".ini", ".cfg", ".md", ".xml", ".yaml", ".yml", ".py", ".sh")
+        and not is_pe
+    ):
         text = head_bytes.decode("utf-8", errors="replace")
         score = _check_script_text(text, R, score, reasons, sus_urls)
         if ext == ".url":
@@ -347,11 +405,37 @@ def scan_file_security(
                     sus_urls.append(u)
                     if why:
                         reasons.append(why)
+        try:
+            from app.services.local_ai import analyze_with_local_ai
+
+            ai_analysis = analyze_with_local_ai(text, filename=name)
+            ai_sc = int(ai_analysis.get("semantic_score", 0) or 0)
+            if ai_sc > 0:
+                score = max(score, ai_sc)
+                for sig in ai_analysis.get("intent_signals") or []:
+                    if sig and sig not in reasons:
+                        reasons.append(sig)
+        except Exception:
+            ai_analysis = None
+
+    # Geçerli Windows Authenticode dijital imzası doğrulanmış resmi kurulumlarda (Cloudflare/Microsoft vb.)
+    # yalnızca zararlı API veya Defender bulgusu yoksa yanlış-pozitif şişmesini önle.
+    if (
+        pe_analysis
+        and pe_analysis.get("authenticode_valid")
+        and not pe_analysis.get("api_families")
+        and not pe_analysis.get("rwx_sections")
+        and not (pe_analysis.get("defender") or {}).get("infected")
+        and not any(ch in name for ch in RLO_CHARS)
+        and not (is_pe and ext in DOC_MEDIA_EXT)
+    ):
+        score = min(score, 15)
+        reasons.append("Geçerli Windows Authenticode dijital imzası doğrulandı.")
 
     score = max(0, min(100, score))
     level = _level_from_score(score)
     phishing_detected = phishing_detected or any(
-        ("Oltalama" in r or "taklidi" in r or "Kimlik-avı" in r) for r in reasons
+        ("Oltalama" in r or "taklidi" in r or "Kimlik-avı" in r or "Sosyal mühendislik" in r) for r in reasons
     )
 
     return {
@@ -360,7 +444,7 @@ def scan_file_security(
         "filename": name,
         "subject": name,
         "size": size,
-        "sha256": sha256_file(p),
+        "sha256": file_sha,
         "motw": motw,
         "risk_score": score,
         "risk_level": level,
@@ -372,6 +456,8 @@ def scan_file_security(
         "suspicious_urls": sus_urls,
         "phishing_detected": phishing_detected,
         "prompt_injection_detected": prompt_injection_detected,
+        "ai_analysis": ai_analysis,
+        "pe_analysis": pe_analysis,
         "tracking_pixels_blocked": 0,
         "recommended_action": (
             "Dosyayı çalıştırmayın/açmayın, karantinaya alın veya kaynağını doğrulayın."
@@ -464,6 +550,7 @@ def quarantine_file(
         "sha256": digest,
         "risk_score": (report or {}).get("risk_score", 0),
         "risk_level": (report or {}).get("risk_level", "UNKNOWN"),
+        "reasons": list((report or {}).get("reasons") or [])[:5],
         "at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
     }
     log_file = qdir / "file_quarantine.jsonl"
@@ -483,3 +570,40 @@ def restore_quarantined_file(quarantine_path: str | Path, dest_path: str | Path)
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), str(dst))
     return dst
+
+
+def lookup_quarantine_record(quarantine_path: str | Path) -> dict | None:
+    """file_quarantine.jsonl günlüğünden ilgili karantina kaydının orijinal yol ve SHA-256 bilgisini bulur."""
+    qp = Path(quarantine_path)
+    log_file = qp.parent / "file_quarantine.jsonl"
+    if not log_file.exists():
+        return None
+    try:
+        qp_res = str(qp.resolve()).lower()
+    except OSError:
+        qp_res = str(qp).lower()
+    qp_name = qp.name.lower()
+    try:
+        lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            obj = json.loads(raw)
+        except Exception:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        cand = str(obj.get("quarantine_path") or "")
+        if not cand:
+            continue
+        try:
+            cand_res = str(Path(cand).resolve()).lower()
+        except OSError:
+            cand_res = cand.lower()
+        if cand_res == qp_res or Path(cand).name.lower() == qp_name:
+            return obj
+    return None

@@ -49,6 +49,10 @@ DEFAULT_RULES: dict[str, dict] = {
     "clipboard_clickfix": {"weight": 40, "enabled": True},
     "unverified_brand_sender": {"weight": 30, "enabled": True},
     "verified_spoof_attempt": {"weight": 30, "enabled": True},
+    "pe_packed_entropy": {"weight": 25, "enabled": True},
+    "pe_suspicious_api": {"weight": 35, "enabled": True},
+    "pe_unsigned_motw": {"weight": 15, "enabled": True},
+    "pe_defender_hit": {"weight": 85, "enabled": True},
 }
 
 _CACHE: dict = {"mtime": 0.0, "rules": {}}

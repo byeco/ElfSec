@@ -59,7 +59,7 @@ BRAND_WORDS = ("banka", "bank", "garanti", "akbank", "ziraat", "işbank", "yapı
                "apple", "microsoft", "netflix", "vodafone", "turkcell", "türk telekom", "e-devlet",
                "edevlet", "ptt", "kargo", "trendyol", "hepsiburada", "n11", "amazon", "whatsapp",
                "instagram", "facebook", "teknosa", "vatan")
-RISKY_EXT = (".exe", ".zip", ".rar", ".scr", ".js", ".vbs", ".bat", ".ps1", ".msi", ".jar", ".iso")
+RISKY_EXT = (".exe", ".scr", ".js", ".vbs", ".bat", ".ps1", ".msi", ".jar", ".iso")
 
 # Marka → resmi alan adları (display-name taklit avı için)
 BRAND_DOMAINS = {
@@ -174,16 +174,30 @@ def _host(url: str) -> str:
         return ""
 
 
-def _check_url(url: str, R: dict | None = None) -> tuple[int, str | None]:
+def _is_shortener_host(host: str) -> bool:
+    h = (host or "").strip().lower().rstrip(".")
+    if not h:
+        return False
+    for s in SHORTENERS:
+        if "." in s:
+            if h == s or h.endswith("." + s):
+                return True
+        elif s in h.split("."):
+            return True
+    return False
+
+
+def _check_url(url: str, R: dict | None = None, check_ext: bool = True) -> tuple[int, str | None]:
     """Tek URL'yi puanla. Dönüş: (puan, gerekçe|None)."""
 
     def _hit(rule_id: str, default: int, reason: str) -> tuple[int, str | None]:
         w = _W(R, rule_id, default)
         return (w, reason) if w else (0, None)
 
+    url = str(url or "").replace("\x00", "").strip()
     ul = url.lower()
     host = _host(url)
-    if any(s in ul for s in SHORTENERS):
+    if _is_shortener_host(host):
         return _hit("url_shortener", 15, f"Kısaltılmış URL (gerçek adres gizli): {url}")
     if host.startswith("xn--") or ".xn--" in host:
         return _hit("url_punycode", 25, f"Homoglif/IDN sahteciliği (punycode): {url}")
@@ -193,7 +207,7 @@ def _check_url(url: str, R: dict | None = None) -> tuple[int, str | None]:
         return _hit("url_tld", 20, f"Şüpheli TLD içeren URL: {url}")
     if "@" in ul:
         return _hit("url_at", 15, f"Aldatıcı yapıda URL (@ işareti): {url}")
-    if ul.rstrip("/").lower().endswith(RISKY_EXT):
+    if check_ext and ul.rstrip("/").lower().endswith(RISKY_EXT):
         return _hit("url_risky_ext", 20, f"Çalıştırılabilir/arsiv dosyasına link: {url}")
     if _mixed_script(host):
         return _hit("url_homoglif", 25, f"Karışık alfabe sahteciliği (homoglif): {url}")
@@ -358,6 +372,7 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
 
     # v1.5.0: doğrulanmış resmi marka göndericisi & taklit motoru
     sender_verification = {"status": "UNKNOWN", "brand": "", "detail": ""}
+    clean_verified_strong = False
     try:
         from app.verified_senders import verify_sender
 
@@ -379,6 +394,8 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
                 and hscore == 0
                 and not any("Prompt injection" in r for r in reasons)
             )
+            if clean_signals and sv_status == "VERIFIED_STRONG":
+                clean_verified_strong = True
             if clean_signals and score > 0:
                 if sv_status == "VERIFIED_STRONG":
                     discount = 35 if sender_verification.get("exact_official_address") else 25
@@ -387,6 +404,32 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
                 score = max(0, score - discount)
     except Exception:
         pass
+
+    # v1.7.0: %100 Yerel Semantik / DLP / Özel Kelime AI Güvenlik Analizi
+    ai_analysis: dict | None = None
+    suppress_ai_fp = False
+    try:
+        from app.services.local_ai import analyze_with_local_ai
+
+        ai_analysis = analyze_with_local_ai(
+            plain_text,
+            subject=subject,
+            sender=sender,
+            urls=urls,
+        )
+        ai_score = int(ai_analysis.get("semantic_score", 0) or 0)
+        suppress_ai_fp = bool(
+            clean_verified_strong
+            and not (ai_analysis.get("sensitive_hits") or ai_analysis.get("keyword_hits"))
+            and ai_analysis.get("category") in ("social_engineering", "credential_harvest", "benign")
+        )
+        if ai_score > 0 and not suppress_ai_fp:
+            score = max(score, ai_score)
+            for sig in ai_analysis.get("intent_signals") or []:
+                if sig and sig not in reasons:
+                    reasons.append(sig)
+    except Exception:
+        ai_analysis = None
 
     score = max(0, min(100, score))
     level = "LOW" if score < 25 else "MEDIUM" if score < 50 else "HIGH" if score < 75 else "CRITICAL"
@@ -397,12 +440,18 @@ def local_analyze(subject: str, plain_text: str, urls: list[str], sender: str = 
         "summary": f"Yerel analiz: {len(reasons)} bulgu, skor {score}/100." if reasons else "Belirgin tehdit kalıbı bulunamadı.",
         "reasons": reasons or ["Bilinen oltalama / injection kalıbı eşleşmedi."],
         "suspicious_urls": sus_urls,
-        "prompt_injection_detected": any("Prompt injection" in r for r in reasons),
+        "prompt_injection_detected": any("Prompt injection" in r or "prompt injection" in r.lower() for r in reasons),
         "phishing_detected": (
             sv_stat in ("IMPERSONATION", "SPOOFED")
+            or (
+                ai_analysis is not None
+                and not suppress_ai_fp
+                and ai_analysis.get("category") in ("social_engineering", "credential_harvest")
+            )
             or any(("Oltalama" in r or "taklidi" in r or "Hassas bilgi" in r or "Doğrulanmamış marka" in r) for r in reasons)
         ),
         "sender_verification": sender_verification,
+        "ai_analysis": ai_analysis,
         "recommended_action": (
             "Bağlantılara tıklama, eki açma, göndericiyi resmi kanaldan doğrula."
             if score >= 50 else "Şüpheli bir durum yok, normal dikkat yeterli."
